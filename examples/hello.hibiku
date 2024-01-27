@@ -1,0 +1,6 @@
+function create_adder(initial_value: int) {
+    return function(value: int) => value + initial_value;
+}
+
+local add5 = create_adder(5);
+print("Hello, Hibiku! 5 + 7 = {}", add5(7));
