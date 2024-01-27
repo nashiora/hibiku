@@ -1,7 +1,35 @@
-#include "hbk_api.h"
 #include "hbk_lex.h"
 
+#include "hbk_api.h"
+
 #include <stddef.h>
+
+const char* hbk_token_kind_to_cstring(hbk_token_kind kind) {
+    switch (kind) {
+        case HBK_TOKEN_INVALID: return "INVALID";
+
+#define X(N) \
+    case HBK_TOKEN_##N: return #N;
+            HBK_TOKEN_KINDS(X)
+#undef X
+
+        default: {
+            HBK_ASSERT(kind > 0 && kind < 256, "Invalid/unknown hbk_token_kind, cannot stringify it");
+
+            static bool characters_initialized = 0;
+            static char characters[256 * 2] = {};
+
+            if (!characters_initialized) {
+                characters_initialized = 1;
+                for (int i = 0; i < 256; i++) {
+                    characters[i * 2] = (char)i;
+                }
+            }
+
+            return &characters[(int)kind * 2];
+        }
+    }
+}
 
 typedef struct hbk_lexer {
     hbk_state* state;
@@ -42,7 +70,7 @@ static bool hbk_lexer_is_eof(hbk_lexer* l) {
 }
 
 static hbk_string_view hbk_lexer_view_from_location(hbk_lexer* l, hbk_location location) {
-    return (hbk_string_view) {
+    return (hbk_string_view){
         .data = l->text.data + location.offset,
         .count = location.length,
     };
