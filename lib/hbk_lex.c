@@ -67,6 +67,19 @@ static int hbk_lexer_current_char(hbk_lexer* l) {
     return l->text.data[l->position];
 }
 
+/// @brief Return the character after the current position of this lexer.
+/// @return The next character if not at the end of the file, otherwise 0.
+static int hbk_lexer_peek_char(hbk_lexer* l) {
+    HBK_ASSERT(l != NULL, "Invalid lexer pointer");
+
+    int64_t peek_position = l->position + 1;
+    if (peek_position < 0 || peek_position >= l->text.count) {
+        return 0;
+    }
+
+    return l->text.data[peek_position];
+}
+
 /// @brief Moves the position of this lexer to the next character.
 static void hbk_lexer_advance(hbk_lexer* l) {
     HBK_ASSERT(l != NULL, "Invalid lexer pointer");
@@ -118,6 +131,10 @@ static void hbk_lexer_skip_whitespace(hbk_lexer* l) {
     while (!hbk_lexer_is_eof(l)) {
         if (is_space(hbk_lexer_current_char(l))) {
             hbk_lexer_advance(l);
+        } else if (hbk_lexer_current_char(l) == '/' && hbk_lexer_peek_char(l) == '/') {
+            while (!hbk_lexer_is_eof(l) && hbk_lexer_current_char(l) != '\n') {
+                hbk_lexer_advance(l);
+            }
         } else {
             break;
         }
