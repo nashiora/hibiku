@@ -41,12 +41,27 @@ static bool hbk_lexer_is_eof(hbk_lexer* l) {
     return l->position >= l->text.count;
 }
 
+static hbk_string_view hbk_lexer_view_from_location(hbk_lexer* l, hbk_location location) {
+    return (hbk_string_view) {
+        .data = l->text.data + location.offset,
+        .count = location.length,
+    };
+}
+
 static hbk_token hbk_lexer_read_token(hbk_lexer* l) {
     HBK_ASSERT(l != NULL, "Invalid lexer pointer");
 
     hbk_token token = {
         .location = hbk_location_create(l->source_id, l->position, 1),
     };
+
+    switch (hbk_lexer_current_char(l)) {
+        default: {
+            hbk_lexer_advance(l);
+            token.string_value = hbk_lexer_view_from_location(l, token.location);
+            // TODO(local): report invalid character with diagnostic API
+        } break;
+    }
 
     return token;
 }
@@ -62,5 +77,10 @@ hbk_vector(hbk_token) hbk_read_tokens(hbk_state* state, hbk_source_id source_id)
     HBK_ASSERT(lexer.text.data[lexer.text.count] != 0, "Invalid lexer source text (not NUL-terminated)");
 
     hbk_vector(hbk_token) tokens = NULL;
+    while (!hbk_lexer_is_eof(&lexer)) {
+        hbk_token token = hbk_lexer_read_token(&lexer);
+        hbk_vector_push(tokens, token);
+    }
+
     return tokens;
 }

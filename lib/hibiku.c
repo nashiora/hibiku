@@ -65,6 +65,10 @@ hbk_source_id hbk_state_add_source_from_file(hbk_state* state, const char* file_
     hbk_source_id source_id = (hbk_source_id)(hbk_vector_count(state->source_files) - 1);
 
     state->source_files[source_id].tokens = hbk_read_tokens(state, source_id);
+    for (int64_t i = 0; i < hbk_vector_count(state->source_files[source_id].tokens); i++) {
+        hbk_token token = state->source_files[source_id].tokens[i];
+        fprintf(stderr, "INVALID: %.*s\n", (int)token.string_value.count, token.string_value.data);
+    }
 
     return source_id;
 }
