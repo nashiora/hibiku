@@ -17,6 +17,17 @@ void cflags(Nob_Cmd* cmd) {
 #endif
 }
 
+static bool cstring_ends_with(const char* cs, const char* end) {
+    size_t cslen = strlen(cs);
+    size_t endlen = strlen(end);
+
+    if (cslen < endlen) {
+        return false;
+    }
+
+    return 0 == strncmp(cs + cslen - endlen, end, endlen);
+}
+
 void hibiku_files(Nob_Cmd* cmd) {
     Nob_File_Paths files = {};
     nob_read_entire_dir("./lib", &files);
@@ -24,6 +35,10 @@ void hibiku_files(Nob_Cmd* cmd) {
     for (size_t i = 0; i < files.count; i++) {
         const char* file = files.items[i];
         if (0 == strcmp(".", file) || 0 == strcmp("..", file)) {
+            continue;
+        }
+
+        if (!cstring_ends_with(file, ".c")) {
             continue;
         }
 
