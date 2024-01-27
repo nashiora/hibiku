@@ -1,2 +1,1 @@
-// this is a comment, it's effectively white space
-local v = 24601;
+print("Hello, world!");

@@ -9,10 +9,13 @@ const char* hbk_token_kind_to_cstring(hbk_token_kind kind) {
     switch (kind) {
         case HBK_TOKEN_INVALID: return "INVALID";
 
-#define X(N) \
+#define TK(N) \
     case HBK_TOKEN_##N: return #N;
-            HBK_TOKEN_KINDS(X)
-#undef X
+#define KW(N, ...) \
+    case HBK_TOKEN_##N: return #N;
+            HBK_TOKEN_KINDS(TK, KW)
+#undef KW
+#undef TK
 
         default: {
             HBK_ASSERT(kind > 0 && kind < 256, "Invalid/unknown hbk_token_kind, cannot stringify it");
@@ -38,11 +41,12 @@ typedef struct keyword_info {
 } keyword_info;
 
 static keyword_info keyword_infos[] = {
-    {HBK_TOKEN_FUNCTION, "function"},
-    {HBK_TOKEN_RETURN, "return"},
-    {HBK_TOKEN_INT, "int"},
-    {HBK_TOKEN_LOCAL, "local"},
-    {0, NULL}
+#define TK(N)
+#define KW(N, I) {HBK_TOKEN_##N, I},
+    HBK_TOKEN_KINDS(TK, KW)
+#undef KW
+#undef TK
+        {0, NULL}
 };
 
 typedef struct hbk_lexer {
@@ -135,6 +139,51 @@ static void hbk_lexer_skip_whitespace(hbk_lexer* l) {
             while (!hbk_lexer_is_eof(l) && hbk_lexer_current_char(l) != '\n') {
                 hbk_lexer_advance(l);
             }
+        } else if (hbk_lexer_current_char(l) == '/' && hbk_lexer_peek_char(l) == '*') {
+            // TODO(local): track multiple locations for each open, so we can report unclosed
+            // bloc comments more accurately if there are multiple.
+            hbk_location start_location = hbk_location_create(l->source_id, l->position, 2);
+
+            hbk_lexer_advance(l);
+            hbk_lexer_advance(l);
+
+            /// The number of currently open block comments.
+            /// We support nesting block comments, so we need to keep track of how
+            /// many are currently open so we know how many to close.
+            int nesting = 1;
+
+            /// Since the open/close delimiters are two characters, we simply
+            /// track the last character we saw to determine if we hit a new
+            /// open or close for the block comment.
+            int last_char = 0;
+
+            while (nesting > 0 && !hbk_lexer_is_eof(l)) {
+                int curr_char = hbk_lexer_current_char(l);
+                /// if the last character was * and the current is /, then we're closing one
+                /// of the nested comments.
+                /// The opposite is true if the last character was / and the current character
+                /// is *, we're opening a new one.
+                /// In both cases, to prevent things like `/*/` both opening and closing at the
+                /// same time (i.e. to prevent overlapping delimiters) we set the current
+                /// tracked character to 0.
+                if (last_char == '*' && curr_char == '/') {
+                    nesting--;
+                    curr_char = 0;
+                } else if (last_char == '/' && curr_char == '*') {
+                    nesting++;
+                    curr_char = 0;
+                }
+
+                last_char = curr_char;
+                hbk_lexer_advance(l);
+            }
+
+            /// if we hit the end of the file and there are still nestings, then we didn't
+            /// properly close some of the block comments. Report an error letting the user
+            /// know that something went wrong somewhere.
+            if (nesting > 0) {
+                // TODO(local): report an error!!
+            }
         } else {
             break;
         }
@@ -149,27 +198,196 @@ static hbk_token hbk_lexer_read_token(hbk_lexer* l) {
     };
 
     switch (hbk_lexer_current_char(l)) {
-        case '~':
-        case '%':
-        case '&':
-        case '*':
         case '(':
         case ')':
-        case '-':
-        case '+':
-        case '=':
         case '[':
         case ']':
         case '{':
         case '}':
-        case '|':
         case ',':
         case '.':
-        case '<':
-        case '>':
         case ';': {
             token.kind = (hbk_token_kind)hbk_lexer_current_char(l);
             hbk_lexer_advance(l);
+        } break;
+
+        case '=': {
+            hbk_lexer_advance(l);
+            if (hbk_lexer_current_char(l) == '=') {
+                hbk_lexer_advance(l);
+                token.kind = HBK_TOKEN_EQUALEQUAL;
+            } else if (hbk_lexer_current_char(l) == '>') {
+                hbk_lexer_advance(l);
+                token.kind = HBK_TOKEN_EQUALGREATER;
+            } else {
+                token.kind = '=';
+            }
+        } break;
+
+        case '!': {
+            hbk_lexer_advance(l);
+            if (hbk_lexer_current_char(l) == '=') {
+                hbk_lexer_advance(l);
+                token.kind = HBK_TOKEN_BANGEQUAL;
+            } else {
+                token.kind = '!';
+            }
+        } break;
+
+        case '+': {
+            hbk_lexer_advance(l);
+            if (hbk_lexer_current_char(l) == '=') {
+                hbk_lexer_advance(l);
+                token.kind = HBK_TOKEN_PLUSEQUAL;
+            } else if (hbk_lexer_current_char(l) == '+') {
+                hbk_lexer_advance(l);
+                token.kind = HBK_TOKEN_PLUSPLUS;
+            } else {
+                token.kind = '+';
+            }
+        } break;
+
+        case '-': {
+            hbk_lexer_advance(l);
+            if (hbk_lexer_current_char(l) == '=') {
+                hbk_lexer_advance(l);
+                token.kind = HBK_TOKEN_MINUSEQUAL;
+            } else if (hbk_lexer_current_char(l) == '-') {
+                hbk_lexer_advance(l);
+                token.kind = HBK_TOKEN_MINUSMINUS;
+            } else {
+                token.kind = '-';
+            }
+        } break;
+
+        case '*': {
+            hbk_lexer_advance(l);
+            if (hbk_lexer_current_char(l) == '=') {
+                hbk_lexer_advance(l);
+                token.kind = HBK_TOKEN_STAREQUAL;
+            } else {
+                token.kind = '*';
+            }
+        } break;
+
+        case '/': {
+            hbk_lexer_advance(l);
+            if (hbk_lexer_current_char(l) == '=') {
+                hbk_lexer_advance(l);
+                token.kind = HBK_TOKEN_SLASHEQUAL;
+            } else {
+                token.kind = '/';
+            }
+        } break;
+
+        case '%': {
+            hbk_lexer_advance(l);
+            if (hbk_lexer_current_char(l) == '=') {
+                hbk_lexer_advance(l);
+                token.kind = HBK_TOKEN_PERCENTEQUAL;
+            } else {
+                token.kind = '%';
+            }
+        } break;
+
+        case '<': {
+            hbk_lexer_advance(l);
+            if (hbk_lexer_current_char(l) == '=') {
+                hbk_lexer_advance(l);
+                token.kind = HBK_TOKEN_LESSEQUAL;
+            } else if (hbk_lexer_current_char(l) == '<') {
+                hbk_lexer_advance(l);
+                if (hbk_lexer_current_char(l) == '=') {
+                    hbk_lexer_advance(l);
+                    token.kind = HBK_TOKEN_LESSLESSEQUAL;
+                } else {
+                    token.kind = HBK_TOKEN_LESSLESS;
+                }
+            } else {
+                token.kind = '<';
+            }
+        } break;
+
+        case '>': {
+            hbk_lexer_advance(l);
+            if (hbk_lexer_current_char(l) == '=') {
+                hbk_lexer_advance(l);
+                token.kind = HBK_TOKEN_GREATEREQUAL;
+            } else if (hbk_lexer_current_char(l) == '>') {
+                hbk_lexer_advance(l);
+                if (hbk_lexer_current_char(l) == '=') {
+                    hbk_lexer_advance(l);
+                    token.kind = HBK_TOKEN_GREATERGREATEREQUAL;
+                } else {
+                    token.kind = HBK_TOKEN_GREATERGREATER;
+                }
+            } else {
+                token.kind = '>';
+            }
+        } break;
+
+        case '|': {
+            hbk_lexer_advance(l);
+            if (hbk_lexer_current_char(l) == '=') {
+                hbk_lexer_advance(l);
+                token.kind = HBK_TOKEN_PIPEEQUAL;
+            } else {
+                token.kind = '|';
+            }
+        } break;
+
+        case '&': {
+            hbk_lexer_advance(l);
+            if (hbk_lexer_current_char(l) == '=') {
+                hbk_lexer_advance(l);
+                token.kind = HBK_TOKEN_AMPERSANDEQUAL;
+            } else {
+                token.kind = '&';
+            }
+        } break;
+
+        case '~': {
+            hbk_lexer_advance(l);
+            if (hbk_lexer_current_char(l) == '=') {
+                hbk_lexer_advance(l);
+                token.kind = HBK_TOKEN_TILDEEQUAL;
+            } else {
+                token.kind = '~';
+            }
+        } break;
+
+        case '"':
+        case '\'': {
+            char delim = hbk_lexer_current_char(l);
+            bool is_char_lit = delim == '\'';
+
+            hbk_lexer_advance(l);
+
+            int nchars = 0;
+            while (!hbk_lexer_is_eof(l) && hbk_lexer_current_char(l) != delim) {
+                char c = hbk_lexer_current_char(l);
+                hbk_lexer_advance(l);
+
+                // TODO(local): generate and intern the string literal value, please <3
+                //hbk_vector_push(token.string_value, (char)c);
+
+                token.location.length++;
+                nchars++;
+            }
+
+            if (is_char_lit && nchars != 0) {
+                // TODO(local): report that a character literal requires exactly one character.
+            }
+
+            if (hbk_lexer_current_char(l) != delim) {
+                // TODO(local): report an unfinished string literal.
+            } else {
+                hbk_lexer_advance(l);
+                token.location.length++;
+            }
+
+            token.kind = HBK_TOKEN_STRING_LITERAL;
+            token.string_value = hbk_lexer_view_from_location(l, token.location);
         } break;
 
         default: {
