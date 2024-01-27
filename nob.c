@@ -24,6 +24,7 @@ void cflags(Nob_Cmd* cmd) {
 #endif
 
     nob_cmd_append(cmd, "-I", "include");
+    nob_cmd_append(cmd, "-ggdb");
 }
 
 static bool cstring_ends_with(const char* cs, const char* end) {

@@ -32,10 +32,11 @@ static hbk_string read_file_as_string(const char* file_path) {
     fseek(f, 0, SEEK_SET);
 
     hbk_string source_text = NULL;
-    hbk_vector_set_count(source_text, file_length + 1);
+    hbk_vector_set_capacity(source_text, file_length + 1);
     HBK_ASSERT(source_text != NULL, "Failed to allocate string data");
     HBK_ASSERT(hbk_vector_count(source_text) == file_length + 1, "Failed to allocate correct count for string data");
     fread(source_text, 1, (size_t)file_length, f);
+    hbk_vector_set_count(source_text, file_length);
     HBK_ASSERT(source_text[file_length] == 0, "Source text string was not NUL-terminated");
     
     fclose(f);
@@ -70,6 +71,8 @@ hbk_source_id hbk_state_add_source_from_file(hbk_state* state, const char* file_
         fprintf(stderr, "%s [%ld,%ld]", hbk_token_kind_to_cstring(token.kind), token.location.offset, token.location.length);
         if (token.string_value.count != 0) {
             fprintf(stderr, " [%.*s]", (int)token.string_value.count, token.string_value.data);
+        } else if (token.kind == HBK_TOKEN_INTEGER_LITERAL) {
+            fprintf(stderr, " %ld", token.integer_value);
         }
         fprintf(stderr, "\n");
     }

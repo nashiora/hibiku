@@ -27,6 +27,10 @@ void hbk_vector_ensure_capacity(void** vector_address, int64_t element_size, int
         hbk_vector_ensure_capacity((void**)&(V), sizeof *(V), (C)); \
         hbk_vector_get_header(V)->count = (C);                      \
     } while (0)
+#define hbk_vector_set_capacity(V, C)                                  \
+    do {                                                            \
+        hbk_vector_ensure_capacity((void**)&(V), sizeof *(V), (C)); \
+    } while (0)
 #define hbk_vector_push(V, E)                                                           \
     do {                                                                                \
         hbk_vector_ensure_capacity((void**)&(V), sizeof *(V), hbk_vector_count(V) + 1); \

@@ -8,7 +8,12 @@
 
 /// X-Macro for token kinds (https://en.wikipedia.org/wiki/X_macro)
 #define HBK_TOKEN_KINDS(X) \
-    X(IDENTIFIER)
+    X(INTEGER_LITERAL) \
+    X(IDENTIFIER) \
+    X(FUNCTION) \
+    X(RETURN) \
+    X(LOCAL) \
+    X(INT)
 
 typedef enum hbk_token_kind {
     HBK_TOKEN_INVALID = 0,

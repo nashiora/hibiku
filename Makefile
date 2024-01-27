@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-I include -std=gnu2x
+CFLAGS=-I include -std=gnu2x -ggdb
 
 LIB = $(wildcard ./lib/*.c)
 HEADERS = $(wildcard ./include/*.h) $(wildcard ./lib/*.h)
