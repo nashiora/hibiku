@@ -17,6 +17,16 @@ typedef struct hbk_location {
 } hbk_location;
 
 hbk_string_view hbk_state_get_source_text_as_view(hbk_state* state, hbk_source_id source_id);
+/// @brief "Intern"s the data of the given string. To intern a string,
+/// the state creates a copy of it that it owns and returns to you a view.
+/// This way, all instances of that string can point to the same memory.
+/// An interned string is immutable.
+hbk_string_view hbk_state_intern_string(hbk_state* state, hbk_string string);
+/// @brief "Intern"s the data of the given string. To intern a string,
+/// the state creates a copy of it that it owns and returns to you a view.
+/// This way, all instances of that string can point to the same memory.
+/// An interned string is immutable.
+hbk_string_view hbk_state_intern_cstring(hbk_state* state, const char* string);
 
 hbk_location hbk_location_create(hbk_source_id source_id, int64_t offset, int64_t length);
 

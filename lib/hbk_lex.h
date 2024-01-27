@@ -28,6 +28,7 @@
     TK(GREATERGREATEREQUAL)     \
     TK(EQUALGREATER)            \
     TK(STRING_LITERAL)          \
+    TK(CHARACTER_LITERAL)       \
     TK(INTEGER_LITERAL)         \
     TK(IDENTIFIER)              \
     KW(AND, "and")              \

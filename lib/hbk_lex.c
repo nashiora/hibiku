@@ -364,19 +364,24 @@ static hbk_token hbk_lexer_read_token(hbk_lexer* l) {
             hbk_lexer_advance(l);
 
             int nchars = 0;
+            hbk_string string_data = NULL;
+
             while (!hbk_lexer_is_eof(l) && hbk_lexer_current_char(l) != delim) {
                 char c = hbk_lexer_current_char(l);
                 hbk_lexer_advance(l);
 
                 // TODO(local): generate and intern the string literal value, please <3
                 //hbk_vector_push(token.string_value, (char)c);
+                if (is_char_lit) {
+                    if (nchars == 0) {
+                        token.integer_value = c;
+                    }
+                } else {
+                    hbk_vector_push(string_data, (char)c);
+                }
 
                 token.location.length++;
                 nchars++;
-            }
-
-            if (is_char_lit && nchars != 0) {
-                // TODO(local): report that a character literal requires exactly one character.
             }
 
             if (hbk_lexer_current_char(l) != delim) {
@@ -386,8 +391,16 @@ static hbk_token hbk_lexer_read_token(hbk_lexer* l) {
                 token.location.length++;
             }
 
-            token.kind = HBK_TOKEN_STRING_LITERAL;
-            token.string_value = hbk_lexer_view_from_location(l, token.location);
+            if (is_char_lit) {
+                if (nchars != 0) {
+                    // TODO(local): report that a character literal requires exactly one character.
+                }
+            } else {
+                token.string_value = hbk_state_intern_string(l->state, string_data);
+                hbk_vector_free(string_data);
+            }
+
+            token.kind = is_char_lit ? HBK_TOKEN_CHARACTER_LITERAL : HBK_TOKEN_STRING_LITERAL;
         } break;
 
         default: {

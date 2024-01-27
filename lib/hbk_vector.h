@@ -2,6 +2,7 @@
 #define HKB_VECTOR_H
 
 #include <stdint.h>
+#include <stdlib.h>
 
 /// A vector/list/dynamir array in Hibiku is represented simply as a pointer to
 /// the underlying type. This gives us type the ability to access the type info
@@ -20,6 +21,7 @@ typedef struct hbk_vector_header {
 void hbk_vector_ensure_capacity(void** vector_address, int64_t element_size, int64_t minimum_capacity);
 
 #define hbk_vector_get_header(V) ((hbk_vector_header*)(V)-1)
+#define hbk_vector_free(V) do { if (V) free(hbk_vector_get_header(V)); (V) = NULL; } while (0)
 #define hbk_vector_count(V)      ((V) ? hbk_vector_get_header(V)->count : 0)
 #define hbk_vector_capacity(V)   ((V) ? hbk_vector_get_header(V)->capacity : 0)
 #define hbk_vector_set_count(V, C)                                  \

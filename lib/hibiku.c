@@ -15,6 +15,8 @@ typedef struct hbk_source_file {
 
 struct hbk_state {
     hbk_vector(hbk_source_file) source_files;
+    hbk_vector(hbk_string_view) interned_strings;
+    // TODO(local): create a pool for string interning
 };
 
 hbk_state* hbk_state_create(void) {
@@ -69,10 +71,14 @@ hbk_source_id hbk_state_add_source_from_file(hbk_state* state, const char* file_
     for (int64_t i = 0; i < hbk_vector_count(state->source_files[source_id].tokens); i++) {
         hbk_token token = state->source_files[source_id].tokens[i];
         fprintf(stderr, "%s [%ld,%ld]", hbk_token_kind_to_cstring(token.kind), token.location.offset, token.location.length);
-        if (token.string_value.count != 0) {
-            fprintf(stderr, " [%.*s]", (int)token.string_value.count, token.string_value.data);
-        } else if (token.kind == HBK_TOKEN_INTEGER_LITERAL) {
+        if (token.kind == HBK_TOKEN_INTEGER_LITERAL) {
             fprintf(stderr, " %ld", token.integer_value);
+        } else if (token.kind == HBK_TOKEN_CHARACTER_LITERAL) {
+            fprintf(stderr, " %c", (char)token.integer_value);
+        } else if (token.kind == HBK_TOKEN_STRING_LITERAL) {
+            fprintf(stderr, " \"%.*s\"", (int)token.string_value.count, token.string_value.data);
+        } else if (token.string_value.count != 0) {
+            fprintf(stderr, " [%.*s]", (int)token.string_value.count, token.string_value.data);
         }
         fprintf(stderr, "\n");
     }
@@ -98,5 +104,47 @@ hbk_string_view hbk_state_get_source_text_as_view(hbk_state* state, hbk_source_i
     return (hbk_string_view){
         .data = state->source_files[source_id].text,
         .count = hbk_vector_count(state->source_files[source_id].text),
+    };
+}
+
+hbk_string_view hbk_state_intern_string(hbk_state* state, hbk_string string) {
+    int64_t length = hbk_vector_count(string);
+    for (int64_t i = 0; i < hbk_vector_count(state->interned_strings); i++) {
+        if (state->interned_strings[i].count != length) {
+            continue;
+        }
+
+        if (0 == strncmp(state->interned_strings[i].data, string, length)) {
+            return state->interned_strings[i];
+        }
+    }
+
+    // TODO(local): actually intern in the pool
+    char* data = calloc(1, (size_t)length + 1);
+    memcpy(data, string, (size_t)length);
+    return (hbk_string_view) {
+        .data = data,
+        .count = length,
+    };
+}
+
+hbk_string_view hbk_state_intern_cstring(hbk_state* state, const char* string) {
+    int64_t length = (int64_t)strlen(string);
+    for (int64_t i = 0; i < hbk_vector_count(state->interned_strings); i++) {
+        if (state->interned_strings[i].count != length) {
+            continue;
+        }
+        
+        if (0 == strncmp(state->interned_strings[i].data, string, length)) {
+            return state->interned_strings[i];
+        }
+    }
+
+    // TODO(local): actually intern in the pool
+    char* data = calloc(1, (size_t)length + 1);
+    memcpy(data, string, (size_t)length);
+    return (hbk_string_view) {
+        .data = data,
+        .count = length,
     };
 }
