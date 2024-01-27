@@ -370,8 +370,6 @@ static hbk_token hbk_lexer_read_token(hbk_lexer* l) {
                 char c = hbk_lexer_current_char(l);
                 hbk_lexer_advance(l);
 
-                // TODO(local): generate and intern the string literal value, please <3
-                //hbk_vector_push(token.string_value, (char)c);
                 if (is_char_lit) {
                     if (nchars == 0) {
                         token.integer_value = c;
