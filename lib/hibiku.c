@@ -1,6 +1,7 @@
 #include <hibiku.h>
 
 #include "hbk_api.h"
+#include "hbk_lex.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,6 +10,7 @@
 typedef struct hbk_source_file {
     const char* name;
     hbk_string text;
+    hbk_vector(hbk_token) tokens;
 } hbk_source_file;
 
 struct hbk_state {
@@ -23,6 +25,7 @@ hbk_state* hbk_state_create(void) {
 
 static hbk_string read_file_as_string(const char* file_path) {
     FILE* f = fopen(file_path, "r");
+    // TODO(local): handle errors for file not existing, or being unopenable for other reasons
     HBK_ASSERT(f != NULL, "Could not open source files (TODO: error handling)");
     fseek(f, 0, SEEK_END);
     int64_t file_length = (int64_t)ftell(f);
@@ -61,6 +64,8 @@ hbk_source_id hbk_state_add_source_from_file(hbk_state* state, const char* file_
     hbk_vector_push(state->source_files, source_file);
     hbk_source_id source_id = (hbk_source_id)(hbk_vector_count(state->source_files) - 1);
 
+    state->source_files[source_id].tokens = hbk_read_tokens(state, source_id);
+
     return source_id;
 }
 
@@ -74,4 +79,13 @@ const char* hbk_state_get_source_text(hbk_state* state, hbk_source_id source_id)
     HBK_ASSERT(state != NULL, "Invalid state pointer");
     HBK_ASSERT(source_id >= 0, "Invalid source id");
     return state->source_files[source_id].text;
+}
+
+hbk_string_view hbk_state_get_source_text_as_view(hbk_state* state, hbk_source_id source_id) {
+    HBK_ASSERT(state != NULL, "Invalid state pointer");
+    HBK_ASSERT(source_id >= 0, "Invalid source id");
+    return (hbk_string_view){
+        .data = state->source_files[source_id].text,
+        .count = hbk_vector_count(state->source_files[source_id].text),
+    };
 }
