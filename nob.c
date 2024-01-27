@@ -1,20 +1,29 @@
+#if defined(__clang__)
+#    define CC "clang"
+#    define NOB_REBUILD_URSELF(binary_path, source_path) "clang", "-o", binary_path, source_path
+#elif defined(__GNUC__)
+#    define CC "gcc"
+#    define NOB_REBUILD_URSELF(binary_path, source_path) "gcc", "-o", binary_path, source_path
+#elif defined(_MSC_VER)
+#    define CC "cl.exe"
+#    define NOB_REBUILD_URSELF(binary_path, source_path) "cl.exe", source_path
+#else
+#    define CC "cc"
+#    define NOB_REBUILD_URSELF(binary_path, source_path) "cc", "-o", binary_path, source_path
+#endif
+
 #define NOB_IMPLEMENTATION
 #include "nob.h"
 
-#if defined(__GNUC__)
-#    define CC "gcc"
-#elif defined(__clang__)
-#    define CC "clang"
-#else
-#     #define CC "cc"
+void cflags(Nob_Cmd* cmd) {
+#if defined(__clang__)
+    nob_cmd_append(cmd, "-std=c23");
+    nob_cmd_append(cmd, "-fsanitize=address");
+#elif defined(__GNUC__)
+    nob_cmd_append(cmd, "-std=gnu2x");
 #endif
 
-void cflags(Nob_Cmd* cmd) {
-#if defined(__GNUC__)
-    nob_cmd_append(cmd, "-std=gnu2x");
-#elif defined(__clang__)
-    nob_cmd_append(cmd, "-std=c23");
-#endif
+    nob_cmd_append(cmd, "-I", "include");
 }
 
 static bool cstring_ends_with(const char* cs, const char* end) {
@@ -54,11 +63,11 @@ bool build_hibiku_exe() {
     cflags(&cmd);
     nob_cmd_append(&cmd, "-o", "hibiku", "./src/hibiku.c");
     hibiku_files(&cmd);
-    
+
     if (!nob_cmd_run_sync(cmd)) {
         nob_return_defer(false);
     }
-    
+
 defer:
     nob_cmd_free(cmd);
     return result;
