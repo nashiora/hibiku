@@ -76,6 +76,21 @@ static hbk_string_view hbk_lexer_view_from_location(hbk_lexer* l, hbk_location l
     };
 }
 
+static bool is_identifier_start(int c) {
+    /// We know the ranges of ASCII values for these characters, and they are continuous.
+    /// 'a' is always the first lowercase letter, and 'z' is always the last. This is
+    /// true for capital letters as well as numbers.
+    /// Our identifiers in Hibiku can only start with these three character ranges.
+    /// (pretend that the underscore is a range of length 1, I guess).
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+}
+
+static bool is_identifier_part(int c) {
+    /// The same as identifier start, but including digits.
+    /// Identifiers cannot start with numbers, but they may contain them.
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+}
+
 static hbk_token hbk_lexer_read_token(hbk_lexer* l) {
     HBK_ASSERT(l != NULL, "Invalid lexer pointer");
 
@@ -84,7 +99,43 @@ static hbk_token hbk_lexer_read_token(hbk_lexer* l) {
     };
 
     switch (hbk_lexer_current_char(l)) {
+        case '~':
+        case '%':
+        case '&':
+        case '*':
+        case '(':
+        case ')':
+        case '-':
+        case '+':
+        case '=':
+        case '[':
+        case ']':
+        case '{':
+        case '}':
+        case '|':
+        case ',':
+        case '.':
+        case '<':
+        case '>':
+        case ';': {
+            token.kind = (hbk_token_kind)hbk_lexer_current_char(l);
+            hbk_lexer_advance(l);
+        } break;
+
         default: {
+            if (is_identifier_start(hbk_lexer_current_char(l))) {
+                token.location.length = 0;
+                while (is_identifier_part(hbk_lexer_current_char(l))) {
+                    hbk_lexer_advance(l);
+                    token.location.length++;
+                }
+
+                token.kind = HBK_TOKEN_IDENTIFIER;
+                token.string_value = hbk_lexer_view_from_location(l, token.location);
+                // TODO(local): check for keywords
+                break;
+            }
+
             hbk_lexer_advance(l);
             token.string_value = hbk_lexer_view_from_location(l, token.location);
             // TODO(local): report invalid character with diagnostic API
