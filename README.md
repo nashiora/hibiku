@@ -2,7 +2,7 @@
 
 Hibiku is a programming language designed to help educate people on how to write
 interpreters and compilers. This is the reference implementation used in the
-book [Zero to Compiler](https://nashiora.com/compiler-book/project-setup.html).
+book [Zero to Compiler](https://nashiora.com/compiler-book/contents.html).
 
 I realize that writing in C is not necessarily as approachable as could be, but
 I want to show how to embed and interpreter as well as run it as a standalone
