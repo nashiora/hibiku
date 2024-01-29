@@ -117,8 +117,12 @@ struct hbk_diagnostic {
 hbk_string_view hbk_cstring_as_view(const char* string);
 hbk_string_view hbk_string_as_view(hbk_string string);
 
+void hbk_string_append_format(hbk_string* string, const char* format, ...);
+void hbk_string_append_formatv(hbk_string* string, const char* format, va_list v);
+
 hbk_state* hbk_state_create();
 void hbk_state_destroy(hbk_state* state);
+void hbk_state_set_enable_color(hbk_state* state, bool use_color);
 hbk_source_id hbk_state_add_source_from_file(hbk_state* state, const char* file_path);
 hbk_string_view hbk_state_get_source_name(hbk_state* state, hbk_source_id source_id);
 hbk_string_view hbk_state_get_source_text(hbk_state* state, hbk_source_id source_id);
@@ -132,5 +136,7 @@ void hbk_diagnostic_add_related(hbk_diagnostic* diag, hbk_diagnostic related);
 
 int64_t hbk_diagnostic_get_related_count(hbk_diagnostic diag);
 //hbk_diagnostic hbk_diagnostic_get_related_at_index(hbk_diagnostic diag, int64_t index);
+
+void hbk_diagnostic_render_to_string(hbk_state* state, hbk_diagnostic diag, hbk_string* string);
 
 #endif // !HIBIKU_H

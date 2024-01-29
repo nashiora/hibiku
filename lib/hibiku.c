@@ -1,35 +1,52 @@
-#include <hibiku.h>
-
 #include "hbk_api.h"
 #include "hbk_lex.h"
 
+#include <hibiku.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct hbk_source_file {
+typedef struct hbk_source {
     hbk_string_view name;
     hbk_string text;
     hbk_vector(hbk_token) tokens;
-} hbk_source_file;
+} hbk_source;
 
 struct hbk_state {
-    hbk_vector(hbk_source_file) source_files;
+    bool use_color;
+    hbk_vector(hbk_source) sources;
     hbk_vector(hbk_string_view) interned_strings;
     hbk_pool* string_pool;
 };
 
 hbk_string_view hbk_cstring_as_view(const char* string) {
     int64_t count = (int64_t)strlen(string);
-    return (hbk_string_view) {
+    return (hbk_string_view){
         .data = string,
         .count = count,
     };
 }
 
+void hbk_string_append_format(hbk_string* string, const char* format, ...) {
+    va_list v;
+    va_start(v, format);
+    hbk_string_append_formatv(string, format, v);
+    va_end(v);
+}
+
+void hbk_string_append_formatv(hbk_string* string, const char* format, va_list v) {
+    va_list vcopy;
+    va_copy(vcopy, v);
+    int64_t message_length = (int64_t)vsnprintf(NULL, 0, format, vcopy);
+    va_end(vcopy);
+
+    hbk_vector_set_capacity(*string, hbk_vector_count(*string) + message_length + 1);
+    vsnprintf(*string + hbk_vector_count(*string), message_length + 1, format, v);
+}
+
 hbk_string_view hbk_string_as_view(hbk_string string) {
     int64_t count = hbk_vector_count(string);
-    return (hbk_string_view) {
+    return (hbk_string_view){
         .data = string,
         .count = count,
     };
@@ -44,13 +61,17 @@ hbk_state* hbk_state_create() {
 
 void hbk_state_destroy(hbk_state* state) {
     if (state == NULL) return;
-    for (int64_t i = 0; i < hbk_vector_count(state->source_files); i++) {
-        hbk_vector_free(state->source_files[i].text);
+    for (int64_t i = 0; i < hbk_vector_count(state->sources); i++) {
+        hbk_vector_free(state->sources[i].text);
     }
-    hbk_vector_free(state->source_files);
+    hbk_vector_free(state->sources);
     hbk_vector_free(state->interned_strings);
     hbk_pool_destroy(state->string_pool);
     free(state);
+}
+
+void hbk_state_set_enable_color(hbk_state* state, bool use_color) {
+    state->use_color = use_color;
 }
 
 static hbk_string read_file_as_string(const char* file_path) {
@@ -68,7 +89,7 @@ static hbk_string read_file_as_string(const char* file_path) {
     fread(source_text, 1, (size_t)file_length, f);
     hbk_vector_set_count(source_text, file_length);
     HBK_ASSERT(source_text[file_length] == 0, "Source text string was not NUL-terminated");
-    
+
     fclose(f);
     return source_text;
 }
@@ -77,27 +98,27 @@ hbk_source_id hbk_state_add_source_from_file(hbk_state* state, const char* file_
     HBK_ASSERT(state != NULL, "Invalid state pointer");
     HBK_ASSERT(file_path != NULL, "Invalid file_path pointer");
 
-    hbk_source_file source_file = {};
+    hbk_source source_file = {};
 
-    for (int64_t i = 0; i < hbk_vector_count(state->source_files); i++) {
-        hbk_source_file source_file = state->source_files[i];
+    for (int64_t i = 0; i < hbk_vector_count(state->sources); i++) {
+        hbk_source source_file = state->sources[i];
         if (0 == strncmp(file_path, source_file.name.data, source_file.name.count)) {
             return (hbk_source_id)i;
         }
     }
 
     hbk_string source_text = read_file_as_string(file_path);
-    source_file = (hbk_source_file){
+    source_file = (hbk_source){
         .name = hbk_cstring_as_view(file_path),
         .text = source_text,
     };
 
-    hbk_vector_push(state->source_files, source_file);
-    hbk_source_id source_id = (hbk_source_id)(hbk_vector_count(state->source_files) - 1);
+    hbk_vector_push(state->sources, source_file);
+    hbk_source_id source_id = (hbk_source_id)(hbk_vector_count(state->sources) - 1);
 
-    state->source_files[source_id].tokens = hbk_read_tokens(state, source_id);
-    for (int64_t i = 0; i < hbk_vector_count(state->source_files[source_id].tokens); i++) {
-        hbk_token token = state->source_files[source_id].tokens[i];
+    state->sources[source_id].tokens = hbk_read_tokens(state, source_id);
+    for (int64_t i = 0; i < hbk_vector_count(state->sources[source_id].tokens); i++) {
+        hbk_token token = state->sources[source_id].tokens[i];
         fprintf(stderr, "%s [%ld,%ld]", hbk_token_kind_to_cstring(token.kind), token.location.offset, token.location.length);
         if (token.kind == HBK_TOKEN_INTEGER_LITERAL) {
             fprintf(stderr, " %ld", token.integer_value);
@@ -110,7 +131,7 @@ hbk_source_id hbk_state_add_source_from_file(hbk_state* state, const char* file_
         }
         fprintf(stderr, "\n");
     }
-    hbk_vector_free(state->source_files[source_id].tokens);
+    hbk_vector_free(state->sources[source_id].tokens);
 
     return source_id;
 }
@@ -118,22 +139,13 @@ hbk_source_id hbk_state_add_source_from_file(hbk_state* state, const char* file_
 hbk_string_view hbk_state_get_source_name(hbk_state* state, hbk_source_id source_id) {
     HBK_ASSERT(state != NULL, "Invalid state pointer");
     HBK_ASSERT(source_id >= 0, "Invalid source id");
-    return state->source_files[source_id].name;
+    return state->sources[source_id].name;
 }
 
 hbk_string_view hbk_state_get_source_text(hbk_state* state, hbk_source_id source_id) {
     HBK_ASSERT(state != NULL, "Invalid state pointer");
     HBK_ASSERT(source_id >= 0, "Invalid source id");
-    return hbk_string_as_view(state->source_files[source_id].text);
-}
-
-hbk_string_view hbk_state_get_source_text_as_view(hbk_state* state, hbk_source_id source_id) {
-    HBK_ASSERT(state != NULL, "Invalid state pointer");
-    HBK_ASSERT(source_id >= 0, "Invalid source id");
-    return (hbk_string_view){
-        .data = state->source_files[source_id].text,
-        .count = hbk_vector_count(state->source_files[source_id].text),
-    };
+    return hbk_string_as_view(state->sources[source_id].text);
 }
 
 hbk_string_view hbk_state_intern_string_data(hbk_state* state, const char* string, int64_t length) {
@@ -150,7 +162,7 @@ hbk_string_view hbk_state_intern_string_data(hbk_state* state, const char* strin
     char* data = hbk_pool_alloc(state->string_pool, length + 1);
     memcpy(data, string, (size_t)length);
 
-    return (hbk_string_view) {
+    return (hbk_string_view){
         .data = data,
         .count = length,
     };
@@ -180,7 +192,7 @@ hbk_location hbk_location_create(hbk_source_id source_id, int64_t offset, int64_
 
 hbk_diagnostic hbk_diagnostic_create(hbk_state* state, hbk_diagnostic_kind kind, hbk_location location, const char* message) {
     hbk_string_view message_view = hbk_state_intern_cstring(state, message);
-    return (hbk_diagnostic) {
+    return (hbk_diagnostic){
         .kind = kind,
         .location = location,
         .message = message_view,
@@ -207,7 +219,7 @@ hbk_diagnostic hbk_diagnostic_create_formatv(hbk_state* state, hbk_diagnostic_ki
     hbk_string_view message_view = hbk_state_intern_string_data(state, message_data, message_length);
     free(message_data);
 
-    return (hbk_diagnostic) {
+    return (hbk_diagnostic){
         .kind = kind,
         .location = location,
         .message = message_view,
@@ -227,4 +239,65 @@ int64_t hbk_diagnostic_get_related_count(hbk_diagnostic diag) {
 hbk_diagnostic hbk_diagnostic_get_related_at_index(hbk_diagnostic diag, int64_t index) {
     HBK_ASSERT(diag != NULL, "Invalid diagnostic pointer");
     return diag.related_diagnostics[index];
+}
+
+void hbk_diagnostic_render_to_string(hbk_state* state, hbk_diagnostic diag, hbk_string* string) {
+    HBK_ASSERT(state != NULL, "Invalid state pointer");
+    HBK_ASSERT(string != NULL, "Invalid string pointer");
+    HBK_ASSERT(*string != NULL, "Invalid string pointer");
+
+    hbk_source_id source_id = diag.location.source_id;
+    hbk_string_view source_name = hbk_state_get_source_name(state, source_id);
+    // hbk_string_view source_text = hbk_state_get_source_text(state, source_id);
+
+    const char* diag_kind_color = "";
+    const char* diag_kind_text = "";
+
+    bool use_color = state->use_color;
+
+    switch (diag.kind) {
+        default: HBK_UNREACHABLE;
+
+        case HBK_DIAG_VERBOSE: {
+            diag_kind_color = COL(CYAN);
+            diag_kind_text = "verbose";
+        } break;
+
+        case HBK_DIAG_DEBUG: {
+            diag_kind_color = COL(YELLOW);
+            diag_kind_text = "debug";
+        } break;
+
+        case HBK_DIAG_INFO: {
+            diag_kind_color = COL(GREEN);
+            diag_kind_text = "note";
+        } break;
+
+        case HBK_DIAG_WARNING: {
+            diag_kind_color = COL(MAGENTA);
+            diag_kind_text = "warning";
+        } break;
+
+        case HBK_DIAG_ERROR: {
+            diag_kind_color = COL(RED);
+            diag_kind_text = "error";
+        } break;
+
+        case HBK_DIAG_FATAL: {
+            diag_kind_color = COL(BRIGHT_RED);
+            diag_kind_text = "fatal";
+        } break;
+    }
+
+    hbk_string_append_format(
+        string,
+        "%.*s[%lld:%lld]: %s%s:%s %.*s\n",
+        HBK_SV_EXPAND(source_name),
+        (long long)diag.location.offset,
+        (long long)diag.location.length,
+        diag_kind_color,
+        diag_kind_text,
+        COL(RESET),
+        HBK_SV_EXPAND(diag.message)
+    );
 }

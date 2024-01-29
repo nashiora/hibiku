@@ -8,6 +8,7 @@
     - [ ] Non-zero length character literal
     - [ ] Unrecognized character in source
     - [ ] Unclosed block comments
-- [ ] Diagnostic rendering, plz
+- [X] Diagnostic rendering
+- [ ] FANCY Diagnostic rendering, plz
 - [ ] Think about freeing source text after lex (until it's needed for diagnostics again, of course)
 - [X] Should hbk_string(_view) become part of the public API?

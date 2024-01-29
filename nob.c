@@ -23,6 +23,8 @@ void cflags(Nob_Cmd* cmd) {
     nob_cmd_append(cmd, "-std=gnu2x");
 #endif
 
+    nob_cmd_append(cmd, "-D__USE_POSIX");
+    nob_cmd_append(cmd, "-D_XOPEN_SOURCE=600");
     nob_cmd_append(cmd, "-I", "include");
     nob_cmd_append(cmd, "-ggdb");
     nob_cmd_append(cmd, "-Wformat");
