@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-I include -std=gnu2x -ggdb
+CFLAGS=-I include -std=gnu2x -ggdb -Wformat -Wextra -Wall -Wpedantic -Wno-unused -Werror=return-type
 
 LIB = $(wildcard ./lib/*.c)
 HEADERS = $(wildcard ./include/*.h) $(wildcard ./lib/*.h)

@@ -1,10 +1,13 @@
 # TODO
-- [ ] Create a pool allocator
-- [ ] String interning in a pool within hbk_state
+- [X] Create a pool allocator
+- [X] String interning in a pool within hbk_state
 - [ ] Lex float literals
 - [ ] Lex hexadecimal literals
-- [ ] Diagnostics!!
+- [X] Diagnostics!!
     - [ ] Unfinished string literal
     - [ ] Non-zero length character literal
     - [ ] Unrecognized character in source
     - [ ] Unclosed block comments
+- [ ] Diagnostic rendering, plz
+- [ ] Think about freeing source text after lex (until it's needed for diagnostics again, of course)
+- [X] Should hbk_string(_view) become part of the public API?

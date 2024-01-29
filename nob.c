@@ -25,6 +25,13 @@ void cflags(Nob_Cmd* cmd) {
 
     nob_cmd_append(cmd, "-I", "include");
     nob_cmd_append(cmd, "-ggdb");
+    nob_cmd_append(cmd, "-Wformat");
+    nob_cmd_append(cmd, "-Wextra");
+    nob_cmd_append(cmd, "-Wall");
+    nob_cmd_append(cmd, "-Wpedantic");
+    nob_cmd_append(cmd, "-Wno-unused");
+    nob_cmd_append(cmd, "-Wno-unused-parameter");
+    nob_cmd_append(cmd, "-Werror=return-type");
 }
 
 static bool cstring_ends_with(const char* cs, const char* end) {

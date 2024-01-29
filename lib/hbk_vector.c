@@ -1,5 +1,3 @@
-#include "hbk_vector.h"
-
 #include "hbk_api.h"
 
 #include <stddef.h>
