@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
     hbk_state_set_enable_color(state, stderr_isatty());
 
     hbk_source_id source_id = hbk_state_add_source_from_file(state, "./examples/hello.hibiku");
-    hbk_diagnostic test_diag = hbk_diagnostic_create_format(state, HBK_DIAG_ERROR, hbk_location_create(source_id, 0, 1), "Test %d", 10);
+    auto test_diag = hbk_diagnostic_create_format(state, HBK_DIAG_ERROR, hbk_location_create(source_id, 0, 1), "Test %d", 10);
 
     hbk_string render_target = NULL;
     hbk_diagnostic_render_to_string(state, test_diag, &render_target);

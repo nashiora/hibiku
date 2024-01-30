@@ -104,6 +104,7 @@ typedef enum  {
     HBK_DIAG_WARNING,
     HBK_DIAG_ERROR,
     HBK_DIAG_FATAL,
+    HBK_DIAG_RELATED,
 } hbk_diagnostic_kind;
 
 typedef struct hbk_diagnostic hbk_diagnostic;
@@ -111,7 +112,7 @@ struct hbk_diagnostic {
     hbk_diagnostic_kind kind;
     hbk_location location;
     hbk_string_view message;
-    hbk_diagnostic* related_diagnostics;
+    hbk_vector(hbk_diagnostic*) related_diagnostics;
 };
 
 hbk_string_view hbk_cstring_as_view(const char* string);
@@ -129,14 +130,11 @@ hbk_string_view hbk_state_get_source_text(hbk_state* state, hbk_source_id source
 
 hbk_location hbk_location_create(hbk_source_id source_id, int64_t offset, int64_t length);
 
-hbk_diagnostic hbk_diagnostic_create(hbk_state* state, hbk_diagnostic_kind kind, hbk_location location, const char* message);
-hbk_diagnostic hbk_diagnostic_create_format(hbk_state* state, hbk_diagnostic_kind kind, hbk_location location, const char* format, ...);
-hbk_diagnostic hbk_diagnostic_create_formatv(hbk_state* state, hbk_diagnostic_kind kind, hbk_location location, const char* format, va_list v);
-void hbk_diagnostic_add_related(hbk_diagnostic* diag, hbk_diagnostic related);
+hbk_diagnostic* hbk_diagnostic_create(hbk_state* state, hbk_diagnostic_kind kind, hbk_location location, const char* message);
+hbk_diagnostic* hbk_diagnostic_create_format(hbk_state* state, hbk_diagnostic_kind kind, hbk_location location, const char* format, ...);
+hbk_diagnostic* hbk_diagnostic_create_formatv(hbk_state* state, hbk_diagnostic_kind kind, hbk_location location, const char* format, va_list v);
+void hbk_diagnostic_add_related(hbk_diagnostic* diag, hbk_diagnostic* related);
 
-int64_t hbk_diagnostic_get_related_count(hbk_diagnostic diag);
-//hbk_diagnostic hbk_diagnostic_get_related_at_index(hbk_diagnostic diag, int64_t index);
-
-void hbk_diagnostic_render_to_string(hbk_state* state, hbk_diagnostic diag, hbk_string* string);
+void hbk_diagnostic_render_to_string(hbk_state* state, hbk_diagnostic* diag, hbk_string* string);
 
 #endif // !HIBIKU_H
