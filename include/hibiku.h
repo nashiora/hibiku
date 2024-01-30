@@ -3,6 +3,7 @@
 
 #include <stdarg.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 /// Fancy C macro trickery to get strings when we need them.
@@ -127,6 +128,7 @@ void hbk_state_set_enable_color(hbk_state* state, bool use_color);
 hbk_source_id hbk_state_add_source_from_file(hbk_state* state, const char* file_path);
 hbk_string_view hbk_state_get_source_name(hbk_state* state, hbk_source_id source_id);
 hbk_string_view hbk_state_get_source_text(hbk_state* state, hbk_source_id source_id);
+void hbk_state_render_diagnostics_to_file(hbk_state* state, FILE* file);
 
 hbk_location hbk_location_create(hbk_source_id source_id, int64_t offset, int64_t length);
 

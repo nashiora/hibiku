@@ -42,8 +42,10 @@ void hbk_string_append_formatv(hbk_string* string, const char* format, va_list v
     int64_t message_length = (int64_t)vsnprintf(NULL, 0, format, vcopy);
     va_end(vcopy);
 
-    hbk_vector_set_capacity(*string, hbk_vector_count(*string) + message_length + 1);
-    vsnprintf(*string + hbk_vector_count(*string), message_length + 1, format, v);
+    int64_t count = hbk_vector_count(*string);
+    hbk_vector_set_capacity(*string, count + message_length + 1);
+    hbk_vector_set_count(*string, count + message_length);
+    vsnprintf(*string + count, message_length + 1, format, v);
 }
 
 hbk_string_view hbk_string_as_view(hbk_string string) {
@@ -69,6 +71,7 @@ void hbk_state_destroy(hbk_state* state) {
     }
     hbk_vector_free(state->sources);
     hbk_vector_free(state->interned_strings);
+    hbk_vector_free(state->diagnostics);
     hbk_pool_destroy(state->misc_pool);
     hbk_pool_destroy(state->string_pool);
     free(state);
@@ -150,6 +153,21 @@ hbk_string_view hbk_state_get_source_text(hbk_state* state, hbk_source_id source
     HBK_ASSERT(state != NULL, "Invalid state pointer");
     HBK_ASSERT(source_id >= 0, "Invalid source id");
     return hbk_string_as_view(state->sources[source_id].text);
+}
+
+void hbk_state_render_diagnostics_to_file(hbk_state* state, FILE* file) {
+    hbk_string render_target = NULL;
+    for (int64_t i = 0; i < hbk_vector_count(state->diagnostics); i++) {
+        auto diag = state->diagnostics[i];
+        if (diag->kind == HBK_DIAG_RELATED) {
+            continue;
+        }
+
+        hbk_diagnostic_render_to_string(state, diag, &render_target);
+    }
+
+    fprintf(file, "%s", render_target);
+    hbk_vector_free(render_target);
 }
 
 hbk_string_view hbk_state_intern_string_data(hbk_state* state, const char* string, int64_t length) {

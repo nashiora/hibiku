@@ -182,7 +182,7 @@ static void hbk_lexer_skip_whitespace(hbk_lexer* l) {
             /// properly close some of the block comments. Report an error letting the user
             /// know that something went wrong somewhere.
             if (nesting > 0) {
-                // TODO(local): report an error!!
+                (void)hbk_diagnostic_create_format(l->state, HBK_DIAG_ERROR, start_location, "Unfinished block comment.");
             }
         } else {
             break;
@@ -383,7 +383,7 @@ static hbk_token hbk_lexer_read_token(hbk_lexer* l) {
             }
 
             if (hbk_lexer_current_char(l) != delim) {
-                // TODO(local): report an unfinished string literal.
+                (void)hbk_diagnostic_create_format(l->state, HBK_DIAG_ERROR, token.location, "Unfinished %s literal.", is_char_lit ? "character" : "string");
             } else {
                 hbk_lexer_advance(l);
                 token.location.length++;
@@ -391,7 +391,7 @@ static hbk_token hbk_lexer_read_token(hbk_lexer* l) {
 
             if (is_char_lit) {
                 if (nchars != 0) {
-                    // TODO(local): report that a character literal requires exactly one character.
+                    (void)hbk_diagnostic_create_format(l->state, HBK_DIAG_ERROR, token.location, "Character literals must contain exactly one character.");
                 }
             } else {
                 token.string_value = hbk_state_intern_string(l->state, string_data);
@@ -433,9 +433,9 @@ static hbk_token hbk_lexer_read_token(hbk_lexer* l) {
 
                 token.kind = HBK_TOKEN_INTEGER_LITERAL;
             } else {
-                hbk_lexer_advance(l);
+                (void)hbk_diagnostic_create_format(l->state, HBK_DIAG_ERROR, token.location, "Invalid character '%c' in source text.", hbk_lexer_current_char(l));
                 token.string_value = hbk_state_intern_string_view(l->state, hbk_lexer_view_from_location(l, token.location));
-                // TODO(local): report invalid character with diagnostic API
+                hbk_lexer_advance(l);
             }
         } break;
     }

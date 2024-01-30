@@ -4,10 +4,10 @@
 - [ ] Lex float literals
 - [ ] Lex hexadecimal literals
 - [X] Diagnostics!!
-    - [ ] Unfinished string literal
-    - [ ] Non-zero length character literal
-    - [ ] Unrecognized character in source
-    - [ ] Unclosed block comments
+    - [X] Unfinished string literal
+    - [X] Non-one length character literal
+    - [X] Unrecognized character in source
+    - [X] Unclosed block comments
 - [X] Diagnostic rendering
 - [ ] FANCY Diagnostic rendering, plz
 - [ ] Think about freeing source text after lex (until it's needed for diagnostics again, of course)
