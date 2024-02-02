@@ -9,10 +9,14 @@
 
 /// X-Macro for token kinds (https://en.wikipedia.org/wiki/X_macro)
 #define HBK_SYNTAX_KINDS(X) \
+    X(DECL_FUNCTION)        \
+    X(DECL_VARIABLE)        \
+    X(STMT_COMPOUND)        \
     X(INTEGER_LITERAL)      \
     X(FLOAT_LITERAL)        \
     X(BOOL_LITERAL)         \
-    X(STRING_LITERAL)
+    X(STRING_LITERAL)       \
+    X(TYPE_INTEGER)
 
 typedef enum hbk_syntax_kind {
     HBK_SYNTAX_INVALID,
@@ -48,6 +52,13 @@ struct hbk_syntax {
             bool bool_value;
             hbk_string_view string_value;
         } literal;
+
+        struct {
+            bool is_exported;
+            hbk_string_view name;
+            hbk_syntax* type;
+            hbk_syntax* initial_value;
+        } decl_variable;
     };
 };
 
@@ -55,6 +66,8 @@ const char* hbk_syntax_kind_to_cstring(hbk_syntax_kind kind);
 
 void hbk_syntax_tree_destroy(hbk_syntax_tree* tree);
 void hbk_syntax_tree_print_to_string(hbk_state* state, hbk_syntax_tree* tree, hbk_string* out_string, bool use_color);
+
+hbk_syntax* hbk_syntax_create(hbk_syntax_tree* tree, hbk_syntax_kind kind, hbk_location location);
 
 hbk_syntax_tree* hbk_parse(hbk_state* state, hbk_source_id source_id);
 

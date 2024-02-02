@@ -1,4 +1,3 @@
-1
-foo
-"hello"
-true
+export foo = 34;
+local bar = 35;
+local baz;

@@ -18,6 +18,7 @@
     X(FUNCTION, "function")   \
     X(CONST, "const")         \
     X(LOCAL, "local")         \
+    X(EXPORT, "export")       \
     X(IF, "if")               \
     X(ELSE, "else")           \
     X(WHILE, "while")         \

@@ -24,25 +24,39 @@ const char* hbk_syntax_kind_to_cstring(hbk_syntax_kind kind) {
     }
 }
 
-hbk_syntax* hbk_syntax_create(hbk_parser* p, hbk_syntax_kind kind, hbk_location location);
+hbk_syntax* hbk_parse_decl(hbk_parser* p);
+hbk_syntax* hbk_parse_decl_function(hbk_parser* p, hbk_token export_token);
+hbk_syntax* hbk_parse_decl_variable(hbk_parser* p, hbk_token decl_token);
 
-hbk_syntax* hbk_parse_primary(hbk_parser* p);
+hbk_syntax* hbk_parse_stmt(hbk_parser* p);
+hbk_syntax* hbk_parse_stmt_compound(hbk_parser* p);
+
+hbk_syntax* hbk_parse_type(hbk_parser* p);
+
+hbk_syntax* hbk_parse_expr(hbk_parser* p);
+hbk_syntax* hbk_parse_expr_primary(hbk_parser* p);
 
 void hbk_parser_advance(hbk_parser* p) {
     HBK_ASSERT(p != NULL, "invalid parser pointer");
     p->current_index++;
 }
 
-hbk_token hbk_parser_token(hbk_parser* p) {
+hbk_token hbk_parser_peek(hbk_parser* p, int offset) {
     HBK_ASSERT(p != NULL, "invalid parser pointer");
-    if (p->current_index < 0 || p->current_index >= hbk_vector_count(p->tokens)) {
+
+    int64_t peek_index = p->current_index + offset;
+    if (peek_index < 0 || peek_index >= hbk_vector_count(p->tokens)) {
         return (hbk_token){
             .location = hbk_location_create(p->source_id, p->source_text.count, 0),
             .kind = HBK_TOKEN_EOF,
         };
     }
 
-    return p->tokens[p->current_index];
+    return p->tokens[peek_index];
+}
+
+hbk_token hbk_parser_token(hbk_parser* p) {
+    return hbk_parser_peek(p, 0);
 }
 
 hbk_location hbk_parser_location(hbk_parser* p) {
@@ -53,6 +67,10 @@ bool hbk_parser_at(hbk_parser* p, hbk_token_kind kind) {
     return hbk_parser_token(p).kind == kind;
 }
 
+bool hbk_parser_peek_at(hbk_parser* p, hbk_token_kind kind, int offset) {
+    return hbk_parser_peek(p, offset).kind == kind;
+}
+
 bool hbk_parser_consume(hbk_parser* p, hbk_token_kind kind) {
     if (hbk_parser_at(p, kind)) {
         hbk_parser_advance(p);
@@ -60,6 +78,12 @@ bool hbk_parser_consume(hbk_parser* p, hbk_token_kind kind) {
     }
 
     return false;
+}
+
+void hbk_parser_expect_semi(hbk_parser* p) {
+    if (!hbk_parser_consume(p, ';')) {
+        hbk_diagnostic_create(p->state, HBK_DIAG_ERROR, hbk_parser_token(p).location, "Expected ';'.");
+    }
 }
 
 hbk_syntax_tree* hbk_syntax_tree_create() {
@@ -78,12 +102,11 @@ void hbk_syntax_tree_destroy(hbk_syntax_tree* tree) {
     hbk_pool_destroy(tree->pool);
 }
 
-hbk_syntax* hbk_syntax_create(hbk_parser* p, hbk_syntax_kind kind, hbk_location location) {
-    HBK_ASSERT(p != NULL, "invalid parser pointer");
-    HBK_ASSERT(p->tree != NULL, "invalid tree pointer");
-    HBK_ASSERT(p->tree->pool != NULL, "invalid pool pointer");
+hbk_syntax* hbk_syntax_create(hbk_syntax_tree* tree, hbk_syntax_kind kind, hbk_location location) {
+    HBK_ASSERT(tree != NULL, "invalid tree pointer");
+    HBK_ASSERT(tree->pool != NULL, "invalid pool pointer");
 
-    hbk_pool* pool = p->tree->pool;
+    hbk_pool* pool = tree->pool;
     hbk_syntax* syntax = hbk_pool_alloc(pool, sizeof *syntax);
     HBK_ASSERT(syntax != NULL, "invalid syntax pointer");
     syntax->kind = kind;
@@ -92,7 +115,77 @@ hbk_syntax* hbk_syntax_create(hbk_parser* p, hbk_syntax_kind kind, hbk_location 
     return syntax;
 }
 
-hbk_syntax* hbk_parse_primary(hbk_parser* p) {
+hbk_syntax* hbk_parse_decl(hbk_parser* p) {
+    hbk_token token = hbk_parser_token(p);
+    switch (token.kind) {
+        case HBK_TOKEN_EXPORT: {
+            hbk_parser_advance(p);
+            if (hbk_parser_at(p, HBK_TOKEN_FUNCTION)) {
+                HBK_ASSERT(false, "function parsing not implemented");
+            }
+
+            if (!hbk_parser_at(p, HBK_TOKEN_IDENTIFIER)) {
+                // TODO(local): Turn token kinds into more human-readable strings, not just the internal enum representation
+                hbk_diagnostic_create_format(p->state, HBK_DIAG_ERROR, hbk_parser_location(p), "Expected an identifier to name this exported variable, but got %s.", hbk_token_kind_to_cstring(token.kind));
+                hbk_syntax* invalid = hbk_syntax_create(p->tree, HBK_SYNTAX_INVALID, token.location);
+                invalid->invalid.token = token;
+                return invalid;
+            }
+
+            return hbk_parse_decl_variable(p, token);
+        }
+
+        case HBK_TOKEN_LOCAL: {
+            hbk_parser_advance(p);
+
+            if (!hbk_parser_at(p, HBK_TOKEN_IDENTIFIER)) {
+                // TODO(local): Turn token kinds into more human-readable strings, not just the internal enum representation
+                hbk_diagnostic_create_format(p->state, HBK_DIAG_ERROR, hbk_parser_location(p), "Expected an identifier to name this local variable, but got %s.", hbk_token_kind_to_cstring(token.kind));
+                hbk_syntax* invalid = hbk_syntax_create(p->tree, HBK_SYNTAX_INVALID, token.location);
+                invalid->invalid.token = token;
+                return invalid;
+            }
+
+            return hbk_parse_decl_variable(p, token);
+        }
+
+        default: {
+            // TODO(local): Turn token kinds into more human-readable strings, not just the internal enum representation
+            hbk_diagnostic_create_format(p->state, HBK_DIAG_ERROR, hbk_parser_location(p), "Expected a declaration, but got %s.", hbk_token_kind_to_cstring(token.kind));
+            hbk_parser_advance(p);
+
+            hbk_syntax* invalid = hbk_syntax_create(p->tree, HBK_SYNTAX_INVALID, token.location);
+            invalid->invalid.token = token;
+            return invalid;
+        }
+    }
+}
+
+hbk_syntax* hbk_parse_decl_variable(hbk_parser* p, hbk_token decl_token) {
+    HBK_ASSERT(p != NULL, "invalid parser pointer");
+    HBK_ASSERT(decl_token.kind == HBK_TOKEN_LOCAL || decl_token.kind == HBK_TOKEN_EXPORT, "hibiku variable must start with either `local` or `export`");
+    HBK_ASSERT(hbk_parser_at(p, HBK_TOKEN_IDENTIFIER), "hbk_parse_decl_variable expected to be at the variable name");
+
+    hbk_token variable_token = hbk_parser_token(p);
+    hbk_parser_advance(p);
+
+    hbk_syntax* var_node = hbk_syntax_create(p->tree, HBK_SYNTAX_DECL_VARIABLE, variable_token.location);
+    var_node->decl_variable.name = variable_token.string_value;
+
+    if (hbk_parser_consume(p, '=')) {
+        var_node->decl_variable.initial_value = hbk_parse_expr(p);
+    }
+
+    hbk_parser_expect_semi(p);
+
+    return var_node;
+}
+
+hbk_syntax* hbk_parse_expr(hbk_parser* p) {
+    return hbk_parse_expr_primary(p);
+}
+
+hbk_syntax* hbk_parse_expr_primary(hbk_parser* p) {
     HBK_ASSERT(p != NULL, "invalid parser pointer");
 
     hbk_token token = hbk_parser_token(p);
@@ -102,28 +195,28 @@ hbk_syntax* hbk_parse_primary(hbk_parser* p) {
             hbk_diagnostic_create_format(p->state, HBK_DIAG_ERROR, hbk_parser_location(p), "Expected an expression, but got %s.", hbk_token_kind_to_cstring(token.kind));
             hbk_parser_advance(p);
 
-            hbk_syntax* invalid = hbk_syntax_create(p, HBK_SYNTAX_INVALID, token.location);
+            hbk_syntax* invalid = hbk_syntax_create(p->tree, HBK_SYNTAX_INVALID, token.location);
             invalid->invalid.token = token;
             return invalid;
         }
 
         case HBK_TOKEN_INTEGER_LITERAL: {
             hbk_parser_advance(p);
-            hbk_syntax* invalid = hbk_syntax_create(p, HBK_SYNTAX_INTEGER_LITERAL, token.location);
+            hbk_syntax* invalid = hbk_syntax_create(p->tree, HBK_SYNTAX_INTEGER_LITERAL, token.location);
             invalid->literal.integer_value = token.integer_value;
             return invalid;
         }
 
         case HBK_TOKEN_CHARACTER_LITERAL: {
             hbk_parser_advance(p);
-            hbk_syntax* invalid = hbk_syntax_create(p, HBK_SYNTAX_INTEGER_LITERAL, token.location);
+            hbk_syntax* invalid = hbk_syntax_create(p->tree, HBK_SYNTAX_INTEGER_LITERAL, token.location);
             invalid->literal.integer_value = token.integer_value;
             return invalid;
         }
 
         case HBK_TOKEN_STRING_LITERAL: {
             hbk_parser_advance(p);
-            hbk_syntax* invalid = hbk_syntax_create(p, HBK_SYNTAX_STRING_LITERAL, token.location);
+            hbk_syntax* invalid = hbk_syntax_create(p->tree, HBK_SYNTAX_STRING_LITERAL, token.location);
             invalid->literal.string_value = token.string_value;
             return invalid;
         }
@@ -131,7 +224,7 @@ hbk_syntax* hbk_parse_primary(hbk_parser* p) {
         case HBK_TOKEN_TRUE:
         case HBK_TOKEN_FALSE: {
             hbk_parser_advance(p);
-            hbk_syntax* invalid = hbk_syntax_create(p, HBK_SYNTAX_BOOL_LITERAL, token.location);
+            hbk_syntax* invalid = hbk_syntax_create(p->tree, HBK_SYNTAX_BOOL_LITERAL, token.location);
             invalid->literal.bool_value = token.kind == HBK_TOKEN_TRUE;
             return invalid;
         }
@@ -155,7 +248,7 @@ hbk_syntax_tree* hbk_parse(hbk_state* state, hbk_source_id source_id) {
 
     while (!hbk_parser_at(&parser, HBK_TOKEN_EOF)) {
         int64_t last_parser_index = parser.current_index;
-        hbk_syntax* parsed_syntax = hbk_parse_primary(&parser);
+        hbk_syntax* parsed_syntax = hbk_parse_decl(&parser);
         HBK_ASSERT(parsed_syntax != NULL, "all parser routines must return a valid syntax node");
         HBK_ASSERT(last_parser_index < parser.current_index, "all parser routines must advance the token index by at least one");
         hbk_vector_push(tree->syntax_nodes, parsed_syntax);
@@ -225,9 +318,19 @@ void hbk_syntax_print(hbk_syntax_print_context* print_context, hbk_syntax* node)
     hbk_vector(hbk_syntax*) children = NULL;
 
     switch (node->kind) {
+        default: break;
+
         case HBK_SYNTAX_INVALID: {
             hbk_string_view source_text = hbk_state_get_source_text(print_context->state, node->location.source_id);
             hbk_string_append_format(print_context->output, " %s%.*s", COL(RED), (int)node->location.length, source_text.data + node->location.offset);
+        } break;
+
+        case HBK_SYNTAX_DECL_VARIABLE: {
+            hbk_string_append_format(print_context->output, " %s%.*s", COL(COL_NAME), HBK_SV_EXPAND(node->decl_variable.name));
+
+            if (node->decl_variable.initial_value != NULL) {
+                hbk_vector_push(children, node->decl_variable.initial_value);
+            }
         } break;
 
         case HBK_SYNTAX_INTEGER_LITERAL: {
