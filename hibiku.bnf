@@ -1,0 +1,40 @@
+<function-body> ::= <stmt-compound>
+                  | "=>" <expr> ";"
+                  | ";"
+
+<attribs> ::= { <attrib> }
+<attrib> ::= CONST
+
+<decl> ::= <decl-function>
+         | <decl-variable>
+
+<decl-function> ::= <attribs> [ EXPORT ] FUNCTION IDENTIFIER "(" ")" [ ":" <type> ] <function-body>
+<decl-variable> ::= <attribs> ( EXPORT | LOCAL ) IDENTIFIER [ [ ":" <type> ] "=" <expr> ] ";"
+
+<stmt> ::= <decl>
+         | <stmt-compound>
+         | ";"
+
+<stmt-compound> ::= "{" [ <stmt> ] "}"
+
+<type> ::= <type-primitive>
+
+<type-primitive> ::= INT | FLOAT | STRING | BOOL
+
+<expr> ::= <expr-lookup>
+         | <expr-literal>
+         | <expr-binary>
+
+<expr-lookup>  ::= IDENTIFIER
+<expr-literal> ::= INTEGER_LITERAL | STRING_LITERAL | TRUE | FALSE
+<expr-binary>  ::= <expr> <binary-op> <expr>
+
+<binary-op> ::= "+"
+              | "-"
+              | "*"
+              | "/"
+              | "%"
+              | "=="
+              | "!="
+              | "<="
+              | ">="
