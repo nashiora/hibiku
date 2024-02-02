@@ -1,20 +1,16 @@
 #include "hbk_lex.h"
 
-#include "hbk_api.h"
-
 #include <stddef.h>
 #include <string.h>
 
 const char* hbk_token_kind_to_cstring(hbk_token_kind kind) {
     switch (kind) {
         case HBK_TOKEN_INVALID: return "INVALID";
+        case HBK_TOKEN_EOF: return "EOF";
 
-#define TK(N) \
+#define TK(N, ...) \
     case HBK_TOKEN_##N: return #N;
-#define KW(N, ...) \
-    case HBK_TOKEN_##N: return #N;
-            HBK_TOKEN_KINDS(TK, KW)
-#undef KW
+            HBK_TOKEN_KINDS(TK)
 #undef TK
 
         default: {
@@ -41,11 +37,9 @@ typedef struct keyword_info {
 } keyword_info;
 
 static keyword_info keyword_infos[] = {
-#define TK(N)
 #define KW(N, I) {HBK_TOKEN_##N, I},
-    HBK_TOKEN_KINDS(TK, KW)
+    HBK_TOKEN_KW_KINDS(KW)
 #undef KW
-#undef TK
         {0, NULL}
 };
 
@@ -192,6 +186,7 @@ static void hbk_lexer_skip_whitespace(hbk_lexer* l) {
 
 static hbk_token hbk_lexer_read_token(hbk_lexer* l) {
     HBK_ASSERT(l != NULL, "Invalid lexer pointer");
+    HBK_ASSERT(!hbk_lexer_is_eof(l), "cannot lex from eof");
 
     hbk_token token = {
         .location = hbk_location_create(l->source_id, l->position, 1),
@@ -443,7 +438,7 @@ static hbk_token hbk_lexer_read_token(hbk_lexer* l) {
     return token;
 }
 
-hbk_vector(hbk_token) hbk_read_tokens(hbk_state* state, hbk_source_id source_id) {
+hbk_vector(hbk_token) hbk_lex(hbk_state* state, hbk_source_id source_id) {
     hbk_lexer lexer = {
         .state = state,
         .source_id = source_id,

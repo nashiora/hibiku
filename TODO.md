@@ -12,3 +12,5 @@
 - [ ] FANCY Diagnostic rendering, plz
 - [ ] Think about freeing source text after lex (until it's needed for diagnostics again, of course)
 - [X] Should hbk_string(_view) become part of the public API?
+- [ ] Implement HBK_ASSERT
+- [ ] Turn token kinds into more human-readable strings, not just the internal enum representation

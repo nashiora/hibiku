@@ -1,8 +1,6 @@
 #ifndef HBK_API_H
 #define HBK_API_H
 
-#include "hbk_memory.h"
-
 #include <hibiku.h>
 
 #define HBK_ASSERT(condition, message) \

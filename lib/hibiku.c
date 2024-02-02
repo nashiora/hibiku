@@ -1,5 +1,5 @@
-#include "hbk_api.h"
-#include "hbk_lex.h"
+#include "hbk_internal.h"
+#include "hbk_parse.h"
 
 #include <hibiku.h>
 #include <stdio.h>
@@ -9,7 +9,6 @@
 typedef struct hbk_source {
     hbk_string_view name;
     hbk_string text;
-    hbk_vector(hbk_token) tokens;
 } hbk_source;
 
 struct hbk_state {
@@ -123,7 +122,8 @@ hbk_source_id hbk_state_add_source_from_file(hbk_state* state, const char* file_
     hbk_vector_push(state->sources, source_file);
     hbk_source_id source_id = (hbk_source_id)(hbk_vector_count(state->sources) - 1);
 
-    state->sources[source_id].tokens = hbk_read_tokens(state, source_id);
+#if 0
+    state->sources[source_id].tokens = hbk_lex(state, source_id);
     for (int64_t i = 0; i < hbk_vector_count(state->sources[source_id].tokens); i++) {
         hbk_token token = state->sources[source_id].tokens[i];
         fprintf(stderr, "%s [%ld,%ld]", hbk_token_kind_to_cstring(token.kind), token.location.offset, token.location.length);
@@ -139,6 +139,15 @@ hbk_source_id hbk_state_add_source_from_file(hbk_state* state, const char* file_
         fprintf(stderr, "\n");
     }
     hbk_vector_free(state->sources[source_id].tokens);
+#endif
+
+    hbk_syntax_tree* tree = hbk_parse(state, source_id);
+    HBK_ASSERT(tree != NULL, "parser did not return a tree");
+
+    hbk_string debug_output = NULL;
+    hbk_syntax_tree_print_to_string(tree, &debug_output, state->use_color);
+    fprintf(stderr, "%s\n", debug_output);
+    hbk_vector_free(debug_output);
 
     return source_id;
 }
@@ -166,7 +175,10 @@ void hbk_state_render_diagnostics_to_file(hbk_state* state, FILE* file) {
         hbk_diagnostic_render_to_string(state, diag, &render_target);
     }
 
-    fprintf(file, "%s", render_target);
+    if (render_target != NULL) {
+        fprintf(file, "%s", render_target);
+    }
+
     hbk_vector_free(render_target);
 }
 

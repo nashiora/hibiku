@@ -1,4 +1,4 @@
-#include "hbk_api.h"
+#include "hbk_internal.h"
 
 #include <stdalign.h>
 #include <stddef.h>
