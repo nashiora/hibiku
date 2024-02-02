@@ -1,5 +1,5 @@
 #include "hbk_internal.h"
-#include "hbk_parse.h"
+#include "hbk_syntax.h"
 
 #include <hibiku.h>
 #include <stdio.h>

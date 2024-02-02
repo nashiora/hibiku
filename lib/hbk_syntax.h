@@ -68,6 +68,7 @@ void hbk_syntax_tree_destroy(hbk_syntax_tree* tree);
 void hbk_syntax_tree_print_to_string(hbk_state* state, hbk_syntax_tree* tree, hbk_string* out_string, bool use_color);
 
 hbk_syntax* hbk_syntax_create(hbk_syntax_tree* tree, hbk_syntax_kind kind, hbk_location location);
+void hbk_syntax_type_print_to_string(hbk_state* state, hbk_syntax* type, hbk_string* out_string, bool use_color);
 
 hbk_syntax_tree* hbk_parse(hbk_state* state, hbk_source_id source_id);
 

@@ -1,4 +1,4 @@
-#include "hbk_parse.h"
+#include "hbk_syntax.h"
 
 typedef struct hbk_parser {
     hbk_state* state;
@@ -172,13 +172,37 @@ hbk_syntax* hbk_parse_decl_variable(hbk_parser* p, hbk_token decl_token) {
     hbk_syntax* var_node = hbk_syntax_create(p->tree, HBK_SYNTAX_DECL_VARIABLE, variable_token.location);
     var_node->decl_variable.name = variable_token.string_value;
 
+    if (hbk_parser_consume(p, ':')) {
+        var_node->decl_variable.type = hbk_parse_type(p);
+    }
+
     if (hbk_parser_consume(p, '=')) {
         var_node->decl_variable.initial_value = hbk_parse_expr(p);
     }
 
     hbk_parser_expect_semi(p);
-
     return var_node;
+}
+
+hbk_syntax* hbk_parse_type(hbk_parser* p) {
+    hbk_token token = hbk_parser_token(p);
+    switch (token.kind) {
+        case HBK_TOKEN_INT: {
+            hbk_parser_advance(p);
+            hbk_syntax* invalid = hbk_syntax_create(p->tree, HBK_SYNTAX_TYPE_INTEGER, token.location);
+            return invalid;
+        }
+
+        default: {
+            // TODO(local): Turn token kinds into more human-readable strings, not just the internal enum representation
+            hbk_diagnostic_create_format(p->state, HBK_DIAG_ERROR, hbk_parser_location(p), "Expected a type, but got %s.", hbk_token_kind_to_cstring(token.kind));
+            hbk_parser_advance(p);
+
+            hbk_syntax* invalid = hbk_syntax_create(p->tree, HBK_SYNTAX_INVALID, token.location);
+            invalid->invalid.token = token;
+            return invalid;
+        }
+    }
 }
 
 hbk_syntax* hbk_parse_expr(hbk_parser* p) {
@@ -264,6 +288,7 @@ hbk_syntax_tree* hbk_parse(hbk_state* state, hbk_source_id source_id) {
 #define COL_LOCATION RED
 #define COL_NAME     BLUE
 #define COL_LITERAL  YELLOW
+#define COL_KEYWORD  BRIGHT_MAGENTA
 
 typedef struct hbk_syntax_print_context {
     hbk_state* state;
@@ -327,6 +352,10 @@ void hbk_syntax_print(hbk_syntax_print_context* print_context, hbk_syntax* node)
 
         case HBK_SYNTAX_DECL_VARIABLE: {
             hbk_string_append_format(print_context->output, " %s%.*s", COL(COL_NAME), HBK_SV_EXPAND(node->decl_variable.name));
+            if (node->decl_variable.type != NULL) {
+                hbk_string_append_format(print_context->output, " %s: ", COL(RESET));
+                hbk_syntax_type_print_to_string(print_context->state, node->decl_variable.type, print_context->output, print_context->use_color);
+            }
 
             if (node->decl_variable.initial_value != NULL) {
                 hbk_vector_push(children, node->decl_variable.initial_value);
@@ -356,6 +385,7 @@ void hbk_syntax_print(hbk_syntax_print_context* print_context, hbk_syntax* node)
 }
 
 void hbk_syntax_tree_print_to_string(hbk_state* state, hbk_syntax_tree* tree, hbk_string* out_string, bool use_color) {
+    HBK_ASSERT(state != NULL, "invalid state pointer");
     HBK_ASSERT(tree != NULL, "invalid tree pointer");
     HBK_ASSERT(out_string != NULL, "invalid (output) string pointer");
 
@@ -368,5 +398,21 @@ void hbk_syntax_tree_print_to_string(hbk_state* state, hbk_syntax_tree* tree, hb
 
     for (int64_t i = 0; i < hbk_vector_count(tree->syntax_nodes); i++) {
         hbk_syntax_print(&print_context, tree->syntax_nodes[i]);
+    }
+}
+
+void hbk_syntax_type_print_to_string(hbk_state* state, hbk_syntax* type, hbk_string* out_string, bool use_color) {
+    HBK_ASSERT(state != NULL, "invalid state pointer");
+    HBK_ASSERT(type != NULL, "invalid syntax node pointer");
+    HBK_ASSERT(out_string != NULL, "invalid (output) string pointer");
+
+    switch (type->kind) {
+        case HBK_SYNTAX_INVALID: {
+            hbk_string_append_format(out_string, "%s<invalid>", COL(RED));
+        } break;
+
+        case HBK_SYNTAX_TYPE_INTEGER: {
+            hbk_string_append_format(out_string, "%sint", COL(COL_KEYWORD));
+        } break;
     }
 }

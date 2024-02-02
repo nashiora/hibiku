@@ -201,6 +201,7 @@ static hbk_token hbk_lexer_read_token(hbk_lexer* l) {
         case '}':
         case ',':
         case '.':
+        case ':':
         case ';': {
             token.kind = (hbk_token_kind)hbk_lexer_current_char(l);
             hbk_lexer_advance(l);

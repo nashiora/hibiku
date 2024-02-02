@@ -1,3 +1,3 @@
-export foo = 34;
+export foo : int;
 local bar = 35;
 local baz;
