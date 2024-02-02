@@ -145,7 +145,7 @@ hbk_source_id hbk_state_add_source_from_file(hbk_state* state, const char* file_
     HBK_ASSERT(tree != NULL, "parser did not return a tree");
 
     hbk_string debug_output = NULL;
-    hbk_syntax_tree_print_to_string(tree, &debug_output, state->use_color);
+    hbk_syntax_tree_print_to_string(state, tree, &debug_output, state->use_color);
     fprintf(stderr, "%s\n", debug_output);
     hbk_vector_free(debug_output);
 

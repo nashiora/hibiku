@@ -173,6 +173,7 @@ hbk_syntax_tree* hbk_parse(hbk_state* state, hbk_source_id source_id) {
 #define COL_LITERAL  YELLOW
 
 typedef struct hbk_syntax_print_context {
+    hbk_state* state;
     hbk_string* output;
     hbk_string indents;
     bool use_color;
@@ -210,7 +211,7 @@ void hbk_syntax_print(hbk_syntax_print_context* print_context, hbk_syntax* node)
 
     hbk_string_append_format(
         print_context->output,
-        "%s%s %s<%016llX> %s[%lld:%lld]%s",
+        "%s%s %s<%llX> %s[%lld:%lld]%s",
         COL(COL_TREE),
         hbk_syntax_kind_to_cstring(node->kind),
         COL(COL_ADDRESS),
@@ -223,7 +224,25 @@ void hbk_syntax_print(hbk_syntax_print_context* print_context, hbk_syntax* node)
 
     hbk_vector(hbk_syntax*) children = NULL;
 
-    // TODO(local): extra printing, plus calc children
+    switch (node->kind) {
+        case HBK_SYNTAX_INVALID: {
+            hbk_string_view source_text = hbk_state_get_source_text(print_context->state, node->location.source_id);
+            hbk_string_append_format(print_context->output, " %s%.*s", COL(RED), (int)node->location.length, source_text.data + node->location.offset);
+        } break;
+
+        case HBK_SYNTAX_INTEGER_LITERAL: {
+            hbk_string_append_format(print_context->output, " %s%lld", COL(COL_LITERAL), node->literal.integer_value);
+        } break;
+
+        case HBK_SYNTAX_STRING_LITERAL: {
+            // TODO(local): print the escaped version of the literal
+            hbk_string_append_format(print_context->output, " %s\"%.*s\"", COL(COL_LITERAL), HBK_SV_EXPAND(node->literal.string_value));
+        } break;
+
+        case HBK_SYNTAX_BOOL_LITERAL: {
+            hbk_string_append_format(print_context->output, " %s%s", COL(COL_LITERAL), node->literal.bool_value ? "true" : "false");
+        } break;
+    }
 
     hbk_string_append_format(print_context->output, "%s\n", COL(RESET));
 
@@ -233,11 +252,12 @@ void hbk_syntax_print(hbk_syntax_print_context* print_context, hbk_syntax* node)
     }
 }
 
-void hbk_syntax_tree_print_to_string(hbk_syntax_tree* tree, hbk_string* out_string, bool use_color) {
+void hbk_syntax_tree_print_to_string(hbk_state* state, hbk_syntax_tree* tree, hbk_string* out_string, bool use_color) {
     HBK_ASSERT(tree != NULL, "invalid tree pointer");
     HBK_ASSERT(out_string != NULL, "invalid (output) string pointer");
 
     hbk_syntax_print_context print_context = {
+        .state = state,
         .indents = NULL,
         .output = out_string,
         .use_color = use_color,

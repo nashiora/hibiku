@@ -54,7 +54,7 @@ struct hbk_syntax {
 const char* hbk_syntax_kind_to_cstring(hbk_syntax_kind kind);
 
 void hbk_syntax_tree_destroy(hbk_syntax_tree* tree);
-void hbk_syntax_tree_print_to_string(hbk_syntax_tree* tree, hbk_string* out_string, bool use_color);
+void hbk_syntax_tree_print_to_string(hbk_state* state, hbk_syntax_tree* tree, hbk_string* out_string, bool use_color);
 
 hbk_syntax_tree* hbk_parse(hbk_state* state, hbk_source_id source_id);
 
