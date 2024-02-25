@@ -238,10 +238,12 @@ hbk_syntax* hbk_parse_decl_function(hbk_parser* p, hbk_token export_token) {
 
         func_node->decl_function.body = hbk_syntax_create(p->tree, HBK_SYNTAX_STMT_ARROW, return_value->location);
         func_node->decl_function.body->stmt_arrow.value = return_value;
+
+        hbk_parser_expect_semi(p);
+    } else {
+        hbk_parser_expect_semi(p);
     }
-
-    hbk_parser_expect_semi(p);
-
+    
     return func_node;
 }
 
