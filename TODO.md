@@ -1,19 +1,7 @@
 # TODO
-- [X] Create a pool allocator
-- [X] Rename the "pool" allocator to its proper name, an arena allocator (oops! how did I get that wrong?)
-- [X] String interning in a pool within hbk_state
 - [ ] Lex float literals
 - [ ] Lex hexadecimal literals
-- [X] Diagnostics!!
-    - [X] Unfinished string literal
-    - [X] Non-one length character literal
-    - [X] Unrecognized character in source
-    - [X] Unclosed block comments
-- [X] Diagnostic rendering
 - [ ] FANCY Diagnostic rendering, plz
 - [ ] Think about freeing source text after lex (until it's needed for diagnostics again, of course)
-- [X] Should hbk_string(_view) become part of the public API?
-- [X] Implement HBK_ASSERT
 - [ ] Turn token kinds into more human-readable strings, not just the internal enum representation
 - [ ] Parse compound statement/expression (determine if it *is* an expression, with `yield`?)
-- [X] Don't compile asserts etc. in release builds
