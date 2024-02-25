@@ -3,11 +3,34 @@
 
 #include <hibiku.h>
 
-#define HBK_ASSERT(condition, message) \
-    do {                               \
+typedef enum hbk_error_kind {
+    HBK_ERROR_ASSERT,
+    HBK_ERROR_ICE,
+    HBK_ERROR_TODO,
+    HBK_ERROR_UNREACHABLE,
+} hbk_error_kind;
+
+#define HBK_ASSERT(condition, message, ...)                                                                           \
+    do {                                                                                                              \
+        if (!(condition)) {                                                                                           \
+            hbk_internal_error(HBK_ERROR_ASSERT, __FILE__, __LINE__, #condition, message __VA_OPT__(, ) __VA_ARGS__); \
+        }                                                                                                             \
     } while (0)
-#define HBK_TODO(message) HBK_ASSERT(false, "TODO: " message)
-#define HBK_UNREACHABLE   HBK_ASSERT(false, "unreachable")
+
+#define HBK_ICE(condition, message, ...)                                                                       \
+    do {                                                                                                       \
+        hbk_internal_error(HBK_ERROR_ICE, __FILE__, __LINE__, #condition, message __VA_OPT__(, ) __VA_ARGS__); \
+    } while (0)
+
+#define HBK_TODO(message)                                                      \
+    do {                                                                       \
+        hbk_internal_error(HBK_ERROR_TODO, __FILE__, __LINE__, NULL, message); \
+    } while (0)
+
+#define HBK_UNREACHABLE                                                            \
+    do {                                                                           \
+        hbk_internal_error(HBK_ERROR_UNREACHABLE, __FILE__, __LINE__, NULL, NULL); \
+    } while (0)
 
 #define ANSI_COLOR_RESET             "\x1b[0m"
 #define ANSI_COLOR_BLACK             "\x1b[30m"
@@ -48,6 +71,9 @@
 
 #define COLCAT(A, B) A##B
 #define COL(X)       (use_color ? COLCAT(ANSI_COLOR_, X) : "")
+
+[[noreturn]]
+void hbk_internal_error(hbk_error_kind kind, const char* file_name, int line_number, const char* assert_expression, const char* format, ...);
 
 typedef struct hbk_arena hbk_arena;
 

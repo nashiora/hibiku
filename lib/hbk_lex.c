@@ -447,7 +447,7 @@ hbk_vector(hbk_token) hbk_lex(hbk_state* state, hbk_source_id source_id) {
 
     lexer.text = hbk_state_get_source_text(state, source_id);
     HBK_ASSERT(lexer.text.data != NULL, "Invalid lexer source text");
-    HBK_ASSERT(lexer.text.data[lexer.text.count] != 0, "Invalid lexer source text (not NUL-terminated)");
+    HBK_ASSERT(lexer.text.data[lexer.text.count] == 0, "Invalid lexer source text (not NUL-terminated)");
 
     hbk_vector(hbk_token) tokens = NULL;
 

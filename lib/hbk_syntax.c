@@ -121,7 +121,7 @@ hbk_syntax* hbk_parse_decl(hbk_parser* p) {
         case HBK_TOKEN_EXPORT: {
             hbk_parser_advance(p);
             if (hbk_parser_at(p, HBK_TOKEN_FUNCTION)) {
-                HBK_ASSERT(false, "function parsing not implemented");
+                return hbk_parse_decl_function(p, token);
             }
 
             if (!hbk_parser_at(p, HBK_TOKEN_IDENTIFIER)) {
@@ -134,6 +134,10 @@ hbk_syntax* hbk_parse_decl(hbk_parser* p) {
 
             return hbk_parse_decl_variable(p, token);
         }
+
+        case HBK_TOKEN_FUNCTION: {
+            return hbk_parse_decl_function(p, (hbk_token){0});
+        } break;
 
         case HBK_TOKEN_LOCAL: {
             hbk_parser_advance(p);
@@ -159,6 +163,10 @@ hbk_syntax* hbk_parse_decl(hbk_parser* p) {
             return invalid;
         }
     }
+}
+
+hbk_syntax* hbk_parse_decl_function(hbk_parser* p, hbk_token export_token) {
+    HBK_TODO("hbk_parse_decl_function");
 }
 
 hbk_syntax* hbk_parse_decl_variable(hbk_parser* p, hbk_token decl_token) {

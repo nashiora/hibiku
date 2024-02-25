@@ -1,7 +1,38 @@
 #include "hbk_internal.h"
 
+#include <stdarg.h>
 #include <stdalign.h>
 #include <stddef.h>
+
+[[noreturn]]
+void hbk_internal_error(hbk_error_kind kind, const char* file_name, int line_number, const char* assert_expression, const char* format, ...) {
+    fprintf(stderr, "%s%s:%d: ", ANSI_COLOR_RESET, file_name, line_number);
+
+    switch (kind) {
+        default: fprintf(stderr, "%s???", ANSI_COLOR_CYAN); break;
+        case HBK_ERROR_ASSERT: fprintf(stderr, "%sAssertion Failed", ANSI_COLOR_RED); break;
+        case HBK_ERROR_ICE: fprintf(stderr, "%sInternal Compiler Error", ANSI_COLOR_MAGENTA); break;
+        case HBK_ERROR_TODO: fprintf(stderr, "%sTODO", ANSI_COLOR_CYAN); break;
+        case HBK_ERROR_UNREACHABLE: fprintf(stderr, "%sUnreachable", ANSI_COLOR_YELLOW); break;
+    }
+    fprintf(stderr, "%s", ANSI_COLOR_RESET);
+
+    if (format != NULL) {
+        fprintf(stderr, ": ");
+        va_list v;
+        va_start(v, format);
+        vfprintf(stderr, format, v);
+        va_end(v);
+    }
+
+    fprintf(stderr, "\n");
+    if (assert_expression != NULL) {
+        fprintf(stderr, "assert condition: %s", assert_expression);
+    }
+
+    fprintf(stderr, "\n");
+    exit(1);
+}
 
 #define HBK_ARENA_BLOCK_CAPACITY (1024*64)
 
