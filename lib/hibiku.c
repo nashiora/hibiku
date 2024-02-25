@@ -91,7 +91,7 @@ static hbk_string read_file_as_string(const char* file_path) {
     hbk_string source_text = NULL;
     hbk_vector_set_capacity(source_text, file_length + 1);
     HBK_ASSERT(source_text != NULL, "Failed to allocate string data");
-    HBK_ASSERT(hbk_vector_capacity(source_text) == file_length + 1, "Failed to allocate correct capacity for string data");
+    HBK_ASSERT(hbk_vector_capacity(source_text) >= file_length + 1, "Failed to allocate correct capacity for string data");
     fread(source_text, 1, (size_t)file_length, f);
     hbk_vector_set_count(source_text, file_length);
     HBK_ASSERT(hbk_vector_count(source_text) == file_length, "Failed to allocate correct count for string data");
@@ -279,7 +279,6 @@ void hbk_diagnostic_add_related(hbk_diagnostic* diag, hbk_diagnostic* related) {
 void hbk_diagnostic_render_to_string(hbk_state* state, hbk_diagnostic* diag, hbk_string* string) {
     HBK_ASSERT(state != NULL, "Invalid state pointer");
     HBK_ASSERT(string != NULL, "Invalid string pointer");
-    HBK_ASSERT(*string != NULL, "Invalid string pointer");
 
     hbk_source_id source_id = diag->location.source_id;
     hbk_string_view source_name = hbk_state_get_source_name(state, source_id);

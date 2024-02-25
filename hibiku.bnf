@@ -1,5 +1,5 @@
 <function-body> ::= <stmt-compound>
-                  | "=>" <expr> ";"
+                  | <stmt-arrow>
                   | ";"
 
 <attribs> ::= { <attrib> }
@@ -8,18 +8,22 @@
 <decl> ::= <decl-function>
          | <decl-variable>
 
-<decl-function> ::= <attribs> [ EXPORT ] FUNCTION IDENTIFIER "(" ")" [ ":" <type> ] <function-body>
-<decl-variable> ::= <attribs> ( EXPORT | LOCAL ) IDENTIFIER [ [ ":" <type> ] "=" <expr> ] ";"
+<decl-function>  ::= <attribs> [ EXPORT ] FUNCTION IDENTIFIER "(" [ <decl-parameter> { "," <decl-parameter> } ] ")" [ ":" <type> ] <function-body>
+<decl-parameter> ::= IDENTIFIER [ ":" <type> ] [ "=" <expr> ]
+<decl-variable>  ::= <attribs> ( EXPORT | LOCAL ) IDENTIFIER [ ":" <type> ] [ "=" <expr> ] ";"
 
 <stmt> ::= <decl>
          | <stmt-compound>
          | ";"
 
+<stmt-arrow>    ::= "=>" <expr> ";"
 <stmt-compound> ::= "{" [ <stmt> ] "}"
 
 <type> ::= <type-primitive>
 
 <type-primitive> ::= INT | FLOAT | STRING | BOOL
+<type-array>     ::= <type> "[" "]"
+<type-table>     ::= <type> "[" <type> "]"
 
 <expr> ::= <expr-lookup>
          | <expr-literal>

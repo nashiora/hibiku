@@ -10,27 +10,20 @@ typedef enum hbk_error_kind {
     HBK_ERROR_UNREACHABLE,
 } hbk_error_kind;
 
-#define HBK_ASSERT(condition, message, ...)                                                                           \
-    do {                                                                                                              \
-        if (!(condition)) {                                                                                           \
-            hbk_internal_error(HBK_ERROR_ASSERT, __FILE__, __LINE__, #condition, message __VA_OPT__(, ) __VA_ARGS__); \
-        }                                                                                                             \
+#ifndef NDEBUG
+#define HBK_ASSERT(condition, message, ...)                                                                                 \
+    do {                                                                                                                    \
+        if (!(condition)) {                                                                                                 \
+            hbk_internal_error(HBK_ERROR_ASSERT, __FILE__, __LINE__, #condition, "" message "" __VA_OPT__(, ) __VA_ARGS__); \
+        }                                                                                                                   \
     } while (0)
+#else
+#define HBK_ASSERT(...) do { } while (0)
+#endif
 
-#define HBK_ICE(condition, message, ...)                                                                       \
-    do {                                                                                                       \
-        hbk_internal_error(HBK_ERROR_ICE, __FILE__, __LINE__, #condition, message __VA_OPT__(, ) __VA_ARGS__); \
-    } while (0)
-
-#define HBK_TODO(message)                                                      \
-    do {                                                                       \
-        hbk_internal_error(HBK_ERROR_TODO, __FILE__, __LINE__, NULL, message); \
-    } while (0)
-
-#define HBK_UNREACHABLE                                                            \
-    do {                                                                           \
-        hbk_internal_error(HBK_ERROR_UNREACHABLE, __FILE__, __LINE__, NULL, NULL); \
-    } while (0)
+#define HBK_ICE(condition, message, ...) hbk_internal_error(HBK_ERROR_ICE, __FILE__, __LINE__, #condition, "" message "" __VA_OPT__(, ) __VA_ARGS__)
+#define HBK_TODO(message) hbk_internal_error(HBK_ERROR_TODO, __FILE__, __LINE__, NULL, "" message "")
+#define HBK_UNREACHABLE hbk_internal_error(HBK_ERROR_UNREACHABLE, __FILE__, __LINE__, NULL, NULL)
 
 #define ANSI_COLOR_RESET             "\x1b[0m"
 #define ANSI_COLOR_BLACK             "\x1b[30m"

@@ -409,6 +409,11 @@ static hbk_token hbk_lexer_read_token(hbk_lexer* l) {
                 token.string_value = hbk_state_intern_string_view(l->state, hbk_lexer_view_from_location(l, token.location));
 
                 for (int64_t i = 0; keyword_infos[i].kind != 0 && token.kind == HBK_TOKEN_IDENTIFIER; i++) {
+                    size_t keyword_length = strlen(keyword_infos[i].keyword_image);
+                    if (token.string_value.count < (int64_t)keyword_length) {
+                        continue;
+                    }
+
                     if (0 == strncmp(keyword_infos[i].keyword_image, token.string_value.data, token.string_value.count)) {
                         token.kind = keyword_infos[i].kind;
                         token.string_value = (hbk_string_view){};

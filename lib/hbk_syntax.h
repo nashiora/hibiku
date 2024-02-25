@@ -10,8 +10,12 @@
 /// X-Macro for token kinds (https://en.wikipedia.org/wiki/X_macro)
 #define HBK_SYNTAX_KINDS(X) \
     X(DECL_FUNCTION)        \
+    X(DECL_PARAMETER)       \
     X(DECL_VARIABLE)        \
+    X(STMT_EMPTY)           \
     X(STMT_COMPOUND)        \
+    X(STMT_ARROW)           \
+    X(IDENTIFIER)           \
     X(INTEGER_LITERAL)      \
     X(FLOAT_LITERAL)        \
     X(BOOL_LITERAL)         \
@@ -47,18 +51,40 @@ struct hbk_syntax {
         } invalid;
 
         struct {
+            bool is_exported;
+            hbk_token name;
+            hbk_vector(hbk_syntax*) parameter_declarations;
+            hbk_syntax* return_type;
+            hbk_syntax* body;
+        } decl_function;
+
+        struct {
+            hbk_token name;
+            hbk_syntax* type;
+            hbk_syntax* default_value;
+        } decl_parameter;
+
+        struct {
+            bool is_exported;
+            hbk_token name;
+            hbk_syntax* type;
+            hbk_syntax* default_value;
+        } decl_variable;
+
+        struct {
+            hbk_syntax* value;
+        } stmt_arrow;
+
+        struct {
+            hbk_token name;
+        } identifier;
+
+        struct {
             int64_t integer_value;
             double float_value;
             bool bool_value;
             hbk_string_view string_value;
         } literal;
-
-        struct {
-            bool is_exported;
-            hbk_string_view name;
-            hbk_syntax* type;
-            hbk_syntax* initial_value;
-        } decl_variable;
     };
 };
 

@@ -1,3 +1,2 @@
-export foo : int;
-local bar = 35;
-local baz;
+
+function identity(a: int): int => a;

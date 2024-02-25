@@ -80,6 +80,29 @@ bool hbk_parser_consume(hbk_parser* p, hbk_token_kind kind) {
     return false;
 }
 
+void hbk_parser_expect(hbk_parser* p, hbk_token_kind kind, hbk_token* out_token) {
+    if (out_token != NULL) {
+        *out_token = hbk_parser_token(p);
+    }
+
+    if (!hbk_parser_consume(p, kind)) {
+        if (kind < 256) {
+            hbk_diagnostic_create_format(p->state, HBK_DIAG_ERROR, hbk_parser_token(p).location, "Expected '%c'.", kind);
+        } else {
+            const char* suffix = NULL;
+            switch (kind) {
+                default: HBK_ASSERT(false, "Unexpected token kind when calling hbk_parser_expect");
+                case HBK_TOKEN_IDENTIFIER: {
+                    suffix = "an identifier";
+                } break;
+            }
+
+            HBK_ASSERT(suffix != NULL, "error message 'suffix' was not set");
+            hbk_diagnostic_create_format(p->state, HBK_DIAG_ERROR, hbk_parser_token(p).location, "Expected %s.", suffix);
+        }
+    }
+}
+
 void hbk_parser_expect_semi(hbk_parser* p) {
     if (!hbk_parser_consume(p, ';')) {
         hbk_diagnostic_create(p->state, HBK_DIAG_ERROR, hbk_parser_token(p).location, "Expected ';'.");
@@ -165,8 +188,61 @@ hbk_syntax* hbk_parse_decl(hbk_parser* p) {
     }
 }
 
+hbk_syntax* hbk_parse_decl_parameter(hbk_parser* p) {
+    HBK_ASSERT(p != NULL, "invalid parser pointer");
+    
+    hbk_syntax* param_node = hbk_syntax_create(p->tree, HBK_SYNTAX_DECL_PARAMETER, hbk_parser_token(p).location);
+    hbk_parser_expect(p, HBK_TOKEN_IDENTIFIER, &param_node->decl_parameter.name);
+
+    if (hbk_parser_consume(p, ':')) {
+        param_node->decl_parameter.type = hbk_parse_type(p);
+        HBK_ASSERT(param_node->decl_parameter.type != NULL, "failed to parse type for parameter");
+    }
+
+    return param_node;
+}
+
 hbk_syntax* hbk_parse_decl_function(hbk_parser* p, hbk_token export_token) {
-    HBK_TODO("hbk_parse_decl_function");
+    // <decl-function> ::= <attribs> [ EXPORT ] FUNCTION IDENTIFIER "(" ")" [ ":" <type> ] <function-body>
+
+    HBK_ASSERT(p != NULL, "invalid parser pointer");
+    HBK_ASSERT(hbk_parser_token(p).kind == HBK_TOKEN_FUNCTION, "hbk_parse_decl_function must be called with the parser positioned at the 'function' keyword");
+
+    hbk_syntax* func_node = hbk_syntax_create(p->tree, HBK_SYNTAX_DECL_FUNCTION, hbk_parser_token(p).location);
+    hbk_parser_advance(p);
+
+    hbk_parser_expect(p, HBK_TOKEN_IDENTIFIER, &func_node->decl_function.name);
+
+    hbk_parser_expect(p, '(', NULL);
+    while (!hbk_parser_at(p, HBK_TOKEN_EOF) && !hbk_parser_at(p, ')')) {
+        hbk_syntax* param = hbk_parse_decl_parameter(p);
+        HBK_ASSERT(param != NULL, "did not parse param ig");
+
+        hbk_vector_push(func_node->decl_function.parameter_declarations, param);
+
+        if (!hbk_parser_consume(p, ',')) {
+            break;
+        }
+    }
+
+    hbk_parser_expect(p, ')', NULL);
+
+    if (hbk_parser_consume(p, ':')) {
+        func_node->decl_function.return_type = hbk_parse_type(p);
+        HBK_ASSERT(func_node->decl_function.return_type != NULL, "failed to parse type for parameter");
+    }
+
+    if (hbk_parser_consume(p, HBK_TOKEN_EQUALGREATER)) {
+        hbk_syntax* return_value = hbk_parse_expr(p);
+        HBK_ASSERT(return_value != NULL, "return value was null");
+
+        func_node->decl_function.body = hbk_syntax_create(p->tree, HBK_SYNTAX_STMT_ARROW, return_value->location);
+        func_node->decl_function.body->stmt_arrow.value = return_value;
+    }
+
+    hbk_parser_expect_semi(p);
+
+    return func_node;
 }
 
 hbk_syntax* hbk_parse_decl_variable(hbk_parser* p, hbk_token decl_token) {
@@ -178,14 +254,14 @@ hbk_syntax* hbk_parse_decl_variable(hbk_parser* p, hbk_token decl_token) {
     hbk_parser_advance(p);
 
     hbk_syntax* var_node = hbk_syntax_create(p->tree, HBK_SYNTAX_DECL_VARIABLE, variable_token.location);
-    var_node->decl_variable.name = variable_token.string_value;
+    var_node->decl_variable.name = variable_token;
 
     if (hbk_parser_consume(p, ':')) {
         var_node->decl_variable.type = hbk_parse_type(p);
     }
 
     if (hbk_parser_consume(p, '=')) {
-        var_node->decl_variable.initial_value = hbk_parse_expr(p);
+        var_node->decl_variable.default_value = hbk_parse_expr(p);
     }
 
     hbk_parser_expect_semi(p);
@@ -232,33 +308,40 @@ hbk_syntax* hbk_parse_expr_primary(hbk_parser* p) {
             return invalid;
         }
 
+        case HBK_TOKEN_IDENTIFIER: {
+            hbk_parser_advance(p);
+            hbk_syntax* primary = hbk_syntax_create(p->tree, HBK_SYNTAX_IDENTIFIER, token.location);
+            primary->identifier.name = token;
+            return primary;
+        }
+
         case HBK_TOKEN_INTEGER_LITERAL: {
             hbk_parser_advance(p);
-            hbk_syntax* invalid = hbk_syntax_create(p->tree, HBK_SYNTAX_INTEGER_LITERAL, token.location);
-            invalid->literal.integer_value = token.integer_value;
-            return invalid;
+            hbk_syntax* primary = hbk_syntax_create(p->tree, HBK_SYNTAX_INTEGER_LITERAL, token.location);
+            primary->literal.integer_value = token.integer_value;
+            return primary;
         }
 
         case HBK_TOKEN_CHARACTER_LITERAL: {
             hbk_parser_advance(p);
-            hbk_syntax* invalid = hbk_syntax_create(p->tree, HBK_SYNTAX_INTEGER_LITERAL, token.location);
-            invalid->literal.integer_value = token.integer_value;
-            return invalid;
+            hbk_syntax* primary = hbk_syntax_create(p->tree, HBK_SYNTAX_INTEGER_LITERAL, token.location);
+            primary->literal.integer_value = token.integer_value;
+            return primary;
         }
 
         case HBK_TOKEN_STRING_LITERAL: {
             hbk_parser_advance(p);
-            hbk_syntax* invalid = hbk_syntax_create(p->tree, HBK_SYNTAX_STRING_LITERAL, token.location);
-            invalid->literal.string_value = token.string_value;
-            return invalid;
+            hbk_syntax* primary = hbk_syntax_create(p->tree, HBK_SYNTAX_STRING_LITERAL, token.location);
+            primary->literal.string_value = token.string_value;
+            return primary;
         }
 
         case HBK_TOKEN_TRUE:
         case HBK_TOKEN_FALSE: {
             hbk_parser_advance(p);
-            hbk_syntax* invalid = hbk_syntax_create(p->tree, HBK_SYNTAX_BOOL_LITERAL, token.location);
-            invalid->literal.bool_value = token.kind == HBK_TOKEN_TRUE;
-            return invalid;
+            hbk_syntax* primary = hbk_syntax_create(p->tree, HBK_SYNTAX_BOOL_LITERAL, token.location);
+            primary->literal.bool_value = token.kind == HBK_TOKEN_TRUE;
+            return primary;
         }
     }
 }
@@ -358,16 +441,64 @@ void hbk_syntax_print(hbk_syntax_print_context* print_context, hbk_syntax* node)
             hbk_string_append_format(print_context->output, " %s%.*s", COL(RED), (int)node->location.length, source_text.data + node->location.offset);
         } break;
 
+        case HBK_SYNTAX_DECL_FUNCTION: {
+            hbk_string_append_format(print_context->output, " %s%.*s%s(", COL(COL_NAME), HBK_SV_EXPAND(node->decl_function.name.string_value), COL(RESET));
+            for (int64_t i = 0; i < hbk_vector_count(node->decl_function.parameter_declarations); i++) {
+                if (i > 0) {
+                    hbk_string_append_format(print_context->output, "%s, ", COL(RESET));
+                }
+
+                hbk_syntax* parameter_syntax = node->decl_function.parameter_declarations[i];
+                hbk_vector_push(children, parameter_syntax);
+
+                hbk_string_append_format(print_context->output, "%s%.*s", COL(COL_NAME), HBK_SV_EXPAND(parameter_syntax->decl_parameter.name.string_value), COL(RESET));
+                if (parameter_syntax->decl_parameter.type != NULL) {
+                    hbk_string_append_format(print_context->output, " %s: ", COL(RESET));
+                    hbk_syntax_type_print_to_string(print_context->state, parameter_syntax->decl_parameter.type, print_context->output, print_context->use_color);
+                }
+            }
+
+            hbk_string_append_format(print_context->output, "%s)", COL(RESET));
+            if (node->decl_function.return_type != NULL) {
+                hbk_string_append_format(print_context->output, " %s: ", COL(RESET));
+                hbk_syntax_type_print_to_string(print_context->state, node->decl_function.return_type, print_context->output, print_context->use_color);
+            }
+
+            if (node->decl_function.body != NULL) {
+                hbk_vector_push(children, node->decl_function.body);
+            }
+        } break;
+
+        case HBK_SYNTAX_DECL_PARAMETER: {
+            hbk_string_append_format(print_context->output, " %s%.*s", COL(COL_NAME), HBK_SV_EXPAND(node->decl_parameter.name.string_value));
+            if (node->decl_parameter.type != NULL) {
+                hbk_string_append_format(print_context->output, " %s: ", COL(RESET));
+                hbk_syntax_type_print_to_string(print_context->state, node->decl_parameter.type, print_context->output, print_context->use_color);
+            }
+
+            if (node->decl_parameter.default_value != NULL) {
+                hbk_vector_push(children, node->decl_parameter.default_value);
+            }
+        } break;
+
         case HBK_SYNTAX_DECL_VARIABLE: {
-            hbk_string_append_format(print_context->output, " %s%.*s", COL(COL_NAME), HBK_SV_EXPAND(node->decl_variable.name));
+            hbk_string_append_format(print_context->output, " %s%.*s", COL(COL_NAME), HBK_SV_EXPAND(node->decl_variable.name.string_value));
             if (node->decl_variable.type != NULL) {
                 hbk_string_append_format(print_context->output, " %s: ", COL(RESET));
                 hbk_syntax_type_print_to_string(print_context->state, node->decl_variable.type, print_context->output, print_context->use_color);
             }
 
-            if (node->decl_variable.initial_value != NULL) {
-                hbk_vector_push(children, node->decl_variable.initial_value);
+            if (node->decl_variable.default_value != NULL) {
+                hbk_vector_push(children, node->decl_variable.default_value);
             }
+        } break;
+
+        case HBK_SYNTAX_STMT_ARROW: {
+            hbk_vector_push(children, node->stmt_arrow.value);
+        } break;
+
+        case HBK_SYNTAX_IDENTIFIER: {
+            hbk_string_append_format(print_context->output, " %s%.*s", COL(COL_NAME), HBK_SV_EXPAND(node->identifier.name.string_value));
         } break;
 
         case HBK_SYNTAX_INTEGER_LITERAL: {
