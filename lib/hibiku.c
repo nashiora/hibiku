@@ -16,8 +16,8 @@ struct hbk_state {
     hbk_vector(hbk_source) sources;
     hbk_vector(hbk_string_view) interned_strings;
     hbk_vector(hbk_diagnostic*) diagnostics;
-    hbk_pool* misc_pool;
-    hbk_pool* string_pool;
+    hbk_arena* misc_arena;
+    hbk_arena* string_arena;
 };
 
 hbk_string_view hbk_cstring_as_view(const char* string) {
@@ -58,8 +58,8 @@ hbk_string_view hbk_string_as_view(hbk_string string) {
 hbk_state* hbk_state_create() {
     hbk_state* state = calloc(sizeof *state, 1);
     HBK_ASSERT(state != NULL, "Buy more ram lol");
-    state->misc_pool = hbk_pool_create();
-    state->string_pool = hbk_pool_create();
+    state->misc_arena = hbk_arena_create();
+    state->string_arena = hbk_arena_create();
     return state;
 }
 
@@ -71,8 +71,8 @@ void hbk_state_destroy(hbk_state* state) {
     hbk_vector_free(state->sources);
     hbk_vector_free(state->interned_strings);
     hbk_vector_free(state->diagnostics);
-    hbk_pool_destroy(state->misc_pool);
-    hbk_pool_destroy(state->string_pool);
+    hbk_arena_destroy(state->misc_arena);
+    hbk_arena_destroy(state->string_arena);
     free(state);
 }
 
@@ -193,7 +193,7 @@ hbk_string_view hbk_state_intern_string_data(hbk_state* state, const char* strin
         }
     }
 
-    char* data = hbk_pool_alloc(state->string_pool, length + 1);
+    char* data = hbk_arena_alloc(state->string_arena, length + 1);
     memcpy(data, string, (size_t)length);
 
     return (hbk_string_view){
@@ -227,7 +227,7 @@ hbk_location hbk_location_create(hbk_source_id source_id, int64_t offset, int64_
 hbk_diagnostic* hbk_diagnostic_create(hbk_state* state, hbk_diagnostic_kind kind, hbk_location location, const char* message) {
     hbk_string_view message_view = hbk_state_intern_cstring(state, message);
 
-    hbk_diagnostic* result = hbk_pool_alloc(state->misc_pool, sizeof *result);
+    hbk_diagnostic* result = hbk_arena_alloc(state->misc_arena, sizeof *result);
     hbk_vector_push(state->diagnostics, result);
     *result = (hbk_diagnostic){
         .kind = kind,
@@ -258,7 +258,7 @@ hbk_diagnostic* hbk_diagnostic_create_formatv(hbk_state* state, hbk_diagnostic_k
     hbk_string_view message_view = hbk_state_intern_string_data(state, message_data, message_length);
     free(message_data);
 
-    hbk_diagnostic* result = hbk_pool_alloc(state->misc_pool, sizeof *result);
+    hbk_diagnostic* result = hbk_arena_alloc(state->misc_arena, sizeof *result);
     hbk_vector_push(state->diagnostics, result);
     *result = (hbk_diagnostic){
         .kind = kind,

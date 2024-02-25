@@ -3,50 +3,50 @@
 #include <stdalign.h>
 #include <stddef.h>
 
-#define HBK_POOL_BLOCK_CAPACITY (1024*64)
+#define HBK_ARENA_BLOCK_CAPACITY (1024*64)
 
-typedef struct hbk_pool_block {
+typedef struct hbk_arena_block {
     void* memory;
     size_t memory_capacity;
     size_t total_allocated;
-} hbk_pool_block;
+} hbk_arena_block;
 
-struct hbk_pool {
-    hbk_vector(hbk_pool_block) blocks;
+struct hbk_arena {
+    hbk_vector(hbk_arena_block) blocks;
 };
 
-void hbk_pool_add_block(hbk_pool* pool) {
-    void* memory = calloc(HBK_POOL_BLOCK_CAPACITY, 1);
-    hbk_pool_block block = {
+void hbk_arena_add_block(hbk_arena* arena) {
+    void* memory = calloc(HBK_ARENA_BLOCK_CAPACITY, 1);
+    hbk_arena_block block = {
         .memory = memory,
-        .memory_capacity = HBK_POOL_BLOCK_CAPACITY,
+        .memory_capacity = HBK_ARENA_BLOCK_CAPACITY,
     };
-    hbk_vector_push(pool->blocks, block);
+    hbk_vector_push(arena->blocks, block);
 }
 
-hbk_pool* hbk_pool_create() {
-    hbk_pool* pool = calloc(1, sizeof *pool);
-    HBK_ASSERT(pool != NULL, "Buy more ram");
-    hbk_pool_add_block(pool);
-    return pool;
+hbk_arena* hbk_arena_create() {
+    hbk_arena* arena = calloc(1, sizeof *arena);
+    HBK_ASSERT(arena != NULL, "Buy more ram");
+    hbk_arena_add_block(arena);
+    return arena;
 }
 
-void hbk_pool_destroy(hbk_pool* pool) {
-    if (pool == NULL) return;
-    for (int64_t i = 0; i < hbk_vector_count(pool->blocks); i++) {
-        free(pool->blocks[i].memory);
-        pool->blocks[i].memory = NULL;
+void hbk_arena_destroy(hbk_arena* arena) {
+    if (arena == NULL) return;
+    for (int64_t i = 0; i < hbk_vector_count(arena->blocks); i++) {
+        free(arena->blocks[i].memory);
+        arena->blocks[i].memory = NULL;
     }
 
-    hbk_vector_free(pool->blocks);
-    free(pool);
+    hbk_vector_free(arena->blocks);
+    free(arena);
 }
 
-void* hbk_pool_alloc(hbk_pool* pool, size_t count) {
-    HBK_ASSERT(count <= HBK_POOL_BLOCK_CAPACITY, "Attempted to allocate something WAY too big, please don't");
+void* hbk_arena_alloc(hbk_arena* arena, size_t count) {
+    HBK_ASSERT(count <= HBK_ARENA_BLOCK_CAPACITY, "Attempted to allocate something WAY too big, please don't");
 
     // TODO(local): vector_back?
-    hbk_pool_block* block = &pool->blocks[hbk_vector_count(pool->blocks) - 1];
+    hbk_arena_block* block = &arena->blocks[hbk_vector_count(arena->blocks) - 1];
     HBK_ASSERT(block != NULL, "what");
 
     // align the count
@@ -54,8 +54,8 @@ void* hbk_pool_alloc(hbk_pool* pool, size_t count) {
     count += (align - (count % align)) % align;
 
     if (count > block->memory_capacity - block->total_allocated) {
-        hbk_pool_add_block(pool);
-        block = &pool->blocks[hbk_vector_count(pool->blocks) - 1];
+        hbk_arena_add_block(arena);
+        block = &arena->blocks[hbk_vector_count(arena->blocks) - 1];
         HBK_ASSERT(block != NULL, "what");
     }
 

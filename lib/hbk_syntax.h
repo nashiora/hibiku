@@ -30,7 +30,7 @@ typedef struct hbk_syntax_tree hbk_syntax_tree;
 typedef struct hbk_syntax hbk_syntax;
 
 struct hbk_syntax_tree {
-    hbk_pool* pool;
+    hbk_arena* arena;
 
     hbk_source_id source_id;
     hbk_vector(hbk_syntax*) syntax_nodes;

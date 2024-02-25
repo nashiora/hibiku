@@ -1,5 +1,6 @@
 # TODO
 - [X] Create a pool allocator
+- [ ] Rename the "pool" allocator to its proper name, an arena allocator (oops! how did I get that wrong?)
 - [X] String interning in a pool within hbk_state
 - [ ] Lex float literals
 - [ ] Lex hexadecimal literals

@@ -49,7 +49,7 @@
 #define COLCAT(A, B) A##B
 #define COL(X)       (use_color ? COLCAT(ANSI_COLOR_, X) : "")
 
-typedef struct hbk_pool hbk_pool;
+typedef struct hbk_arena hbk_arena;
 
 /// @brief "Intern"s the data of the given string. To intern a string,
 /// the state creates a copy of it that it owns and returns to you a view.
@@ -67,8 +67,8 @@ hbk_string_view hbk_state_intern_string_view(hbk_state* state, hbk_string_view s
 /// An interned string is immutable.
 hbk_string_view hbk_state_intern_cstring(hbk_state* state, const char* string);
 
-hbk_pool* hbk_pool_create();
-void hbk_pool_destroy(hbk_pool* pool);
-void* hbk_pool_alloc(hbk_pool* pool, size_t count);
+hbk_arena* hbk_arena_create();
+void hbk_arena_destroy(hbk_arena* arena);
+void* hbk_arena_alloc(hbk_arena* arena, size_t count);
 
 #endif // !HBK_API_H

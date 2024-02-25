@@ -87,27 +87,27 @@ void hbk_parser_expect_semi(hbk_parser* p) {
 }
 
 hbk_syntax_tree* hbk_syntax_tree_create() {
-    hbk_pool* tree_pool = hbk_pool_create();
-    HBK_ASSERT(tree_pool != NULL, "buy more ram");
+    hbk_arena* tree_arena = hbk_arena_create();
+    HBK_ASSERT(tree_arena != NULL, "buy more ram");
 
-    hbk_syntax_tree* tree = hbk_pool_alloc(tree_pool, sizeof *tree);
+    hbk_syntax_tree* tree = hbk_arena_alloc(tree_arena, sizeof *tree);
     HBK_ASSERT(tree != NULL, "buy more ram");
-    tree->pool = tree_pool;
+    tree->arena = tree_arena;
 
     return tree;
 }
 
 void hbk_syntax_tree_destroy(hbk_syntax_tree* tree) {
     if (tree == NULL) return;
-    hbk_pool_destroy(tree->pool);
+    hbk_arena_destroy(tree->arena);
 }
 
 hbk_syntax* hbk_syntax_create(hbk_syntax_tree* tree, hbk_syntax_kind kind, hbk_location location) {
     HBK_ASSERT(tree != NULL, "invalid tree pointer");
-    HBK_ASSERT(tree->pool != NULL, "invalid pool pointer");
+    HBK_ASSERT(tree->arena != NULL, "invalid arena pointer");
 
-    hbk_pool* pool = tree->pool;
-    hbk_syntax* syntax = hbk_pool_alloc(pool, sizeof *syntax);
+    hbk_arena* arena = tree->arena;
+    hbk_syntax* syntax = hbk_arena_alloc(arena, sizeof *syntax);
     HBK_ASSERT(syntax != NULL, "invalid syntax pointer");
     syntax->kind = kind;
     syntax->location = location;
@@ -407,6 +407,10 @@ void hbk_syntax_type_print_to_string(hbk_state* state, hbk_syntax* type, hbk_str
     HBK_ASSERT(out_string != NULL, "invalid (output) string pointer");
 
     switch (type->kind) {
+        default: {
+            hbk_string_append_format(out_string, "%s<unknown type %s>", COL(RED), hbk_syntax_kind_to_cstring(type->kind));
+        } break;
+
         case HBK_SYNTAX_INVALID: {
             hbk_string_append_format(out_string, "%s<invalid>", COL(RED));
         } break;
